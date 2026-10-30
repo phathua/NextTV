@@ -4,14 +4,12 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.os.Build;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -22,15 +20,25 @@ import com.next.tv.launcher.R;
 import com.next.tv.launcher.SectionConfig;
 import com.next.tv.launcher.SystemSettings;
 import com.next.tv.launcher.TvRecommendationReader;
+import com.next.tv.launcher.UtilitySectionAdapter;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
 
 import java.util.List;
 
 public final class AdvancedSettingsDrawer {
+    private static final int COLOR_TEXT_PRIMARY = 0xFFF4F4F5;
+    private static final int COLOR_TEXT_MUTED = 0xFF71717A;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFA1A1AA;
+    private static final int COLOR_TEXT_FOCUSED = 0xFF09090B;
+    private static final int COLOR_TEXT_DESC_FOCUSED = 0xFF52525B;
+    private static final int COLOR_ACCENT_CYAN = 0xFF38BDF8;
+    private static final int COLOR_STATUS_GREEN = 0xFF22C55E;
+    private static final int COLOR_STATUS_GREEN_FOCUSED = 0xFF16A34A;
+    private static final int COLOR_STATUS_RED = 0xFFEF4444;
+    private static final int COLOR_ICON_DEFAULT = 0xFFE4E4E7;
+
     public interface OnAdvancedActionsListener {
-        void onManageWidgets();
-        void onReorderSections();
         void onToggleReducedMotion(boolean enabled);
     }
 
@@ -67,6 +75,10 @@ public final class AdvancedSettingsDrawer {
 
     public boolean isShowing() {
         return isShowing;
+    }
+
+    public boolean isSubPanelOpen() {
+        return isSubPanelOpen;
     }
 
     public void show() {
@@ -250,7 +262,7 @@ public final class AdvancedSettingsDrawer {
         LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
         lpIcon.rightMargin = (int) (12 * density);
         ivIcon.setLayoutParams(lpIcon);
-        ivIcon.setColorFilter(Color.parseColor("#E4E4E7"));
+        ivIcon.setColorFilter(COLOR_ICON_DEFAULT);
         row.addView(ivIcon);
 
         LinearLayout textCol = new LinearLayout(activity);
@@ -259,13 +271,13 @@ public final class AdvancedSettingsDrawer {
 
         TextView tvTitle = new TextView(activity);
         tvTitle.setText(title);
-        tvTitle.setTextColor(Color.parseColor("#F4F4F5"));
+        tvTitle.setTextColor(COLOR_TEXT_PRIMARY);
         tvTitle.setTextSize(14f);
         textCol.addView(tvTitle);
 
         TextView tvSub = new TextView(activity);
         tvSub.setText(subtitle);
-        tvSub.setTextColor(Color.parseColor("#A1A1AA"));
+        tvSub.setTextColor(COLOR_TEXT_SECONDARY);
         tvSub.setTextSize(11f);
         textCol.addView(tvSub);
 
@@ -273,7 +285,7 @@ public final class AdvancedSettingsDrawer {
 
         TextView tvStatus = new TextView(activity);
         tvStatus.setText(isSelected ? "Đang chọn" : "");
-        tvStatus.setTextColor(Color.parseColor("#22C55E"));
+        tvStatus.setTextColor(COLOR_STATUS_GREEN);
         tvStatus.setTextSize(12f);
         row.addView(tvStatus);
 
@@ -288,10 +300,10 @@ public final class AdvancedSettingsDrawer {
 
         row.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
-            tvSub.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#A1A1AA"));
-            ivIcon.setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#E4E4E7"));
-            tvStatus.setTextColor(Color.parseColor(hasFocus ? (isSelected ? "#16A34A" : "#52525B") : (isSelected ? "#22C55E" : "#71717A")));
+            tvTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
+            ivIcon.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
+            tvStatus.setTextColor(hasFocus ? (isSelected ? COLOR_STATUS_GREEN_FOCUSED : COLOR_TEXT_DESC_FOCUSED) : (isSelected ? COLOR_STATUS_GREEN : COLOR_TEXT_MUTED));
         });
 
         row.setOnKeyListener((v, keyCode, event) -> {
@@ -376,7 +388,7 @@ public final class AdvancedSettingsDrawer {
 
             TextView tvTitle = new TextView(activity);
             tvTitle.setText(title);
-            tvTitle.setTextColor(Color.parseColor(isEnabled ? "#F4F4F5" : "#71717A"));
+            tvTitle.setTextColor(isEnabled ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED);
             tvTitle.setTextSize(13f);
             tvTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             row.addView(tvTitle);
@@ -385,14 +397,14 @@ public final class AdvancedSettingsDrawer {
                 TextView tvMoving = new TextView(activity);
                 tvMoving.setText("Đang đổi (▲/▼)");
                 tvMoving.setTextSize(11f);
-                tvMoving.setTextColor(Color.parseColor("#38BDF8"));
+                tvMoving.setTextColor(COLOR_ACCENT_CYAN);
                 tvMoving.setPadding((int) (4 * density), 0, (int) (8 * density), 0);
                 row.addView(tvMoving);
             }
 
             TextView tvStatus = new TextView(activity);
             tvStatus.setText(isEnabled ? "Hiện" : "Ẩn");
-            tvStatus.setTextColor(Color.parseColor(isEnabled ? "#22C55E" : "#EF4444"));
+            tvStatus.setTextColor(isEnabled ? COLOR_STATUS_GREEN : COLOR_STATUS_RED);
             tvStatus.setTextSize(12f);
             row.addView(tvStatus);
 
@@ -452,7 +464,7 @@ public final class AdvancedSettingsDrawer {
 
             row.setOnFocusChangeListener((v, hasFocus) -> {
                 v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : (isEnabled ? "#F4F4F5" : "#71717A")));
+                tvTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (isEnabled ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED));
             });
 
             row.setOnKeyListener((v, keyCode, event) -> {
@@ -631,12 +643,12 @@ public final class AdvancedSettingsDrawer {
                 TextView tv = (TextView) child;
                 if (tv.getId() == R.id.tvPinStatus
                         || tv.getId() == R.id.tvReducedMotionStatus || tv.getId() == R.id.tvDeviceInfoStatus) {
-                    tv.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#A1A1AA"));
+                    tv.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
                 } else {
-                    tv.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
+                    tv.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
                 }
             } else if (child instanceof ImageView) {
-                ((ImageView) child).setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#E4E4E7"));
+                ((ImageView) child).setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
             } else if (child instanceof ViewGroup) {
                 updateChildColors((ViewGroup) child, hasFocus);
             }
@@ -668,11 +680,11 @@ public final class AdvancedSettingsDrawer {
     public void dismiss() {
         if (!isShowing || drawerView == null) return;
 
-        if (activity instanceof MainActivity) {
-            ((MainActivity) activity).unblockMainContentFocus();
-            ((MainActivity) activity).focusUtilityItem(0);
-        } else if (triggerView != null && triggerView.isShown()) {
+        if (triggerView != null && triggerView.isShown()) {
             triggerView.post(() -> triggerView.requestFocus());
+        } else if (activity instanceof MainActivity) {
+            ((MainActivity) activity).unblockMainContentFocus();
+            ((MainActivity) activity).focusUtilityType(UtilitySectionAdapter.TYPE_SETTINGS);
         }
 
         if (drawerContent != null) {

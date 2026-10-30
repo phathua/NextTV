@@ -992,7 +992,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         }
         if ("com.next.tv.launcher.action.OPEN_WIDGETS_SETTINGS".equals(action)) {
-            openAdvancedSettingsForWidgets();
+            showWidgetManagerDrawer();
             return true;
         }
         if ("com.next.tv.launcher.action.OPEN_ADVANCED_SETTINGS".equals(action)) {
@@ -1550,6 +1550,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (remoteFileDrawer != null && remoteFileDrawer.isShowing()) {
             remoteFileDrawer.dismiss();
         }
+        if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
+            widgetManagerDrawer.dismiss();
+        }
+        if (advancedSettingsDrawer != null && advancedSettingsDrawer.isShowing()) {
+            advancedSettingsDrawer.dismiss();
+        }
+        if (memoryCleanerDrawer != null && memoryCleanerDrawer.isShowing()) {
+            memoryCleanerDrawer.dismiss();
+        }
         if (remoteLockServer != null) {
             remoteLockServer.stop();
             remoteLockServer = null;
@@ -1709,13 +1718,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             if (advancedSettingsDrawer != null && advancedSettingsDrawer.isShowing()) {
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                    advancedSettingsDrawer.dismiss();
+                    if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
+                        advancedSettingsDrawer.dismiss();
+                    } else if (advancedSettingsDrawer.isSubPanelOpen()) {
+                        advancedSettingsDrawer.closeSubPanel();
+                    } else {
+                        advancedSettingsDrawer.dismiss();
+                    }
                 }
                 return true;
             }
             if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                    widgetManagerDrawer.dismiss();
+                    if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
+                        widgetManagerDrawer.dismiss();
+                    } else {
+                        widgetManagerDrawer.handleBackPress();
+                    }
                 }
                 return true;
             }
@@ -1907,11 +1926,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         if (advancedSettingsDrawer != null && advancedSettingsDrawer.isShowing()) {
+            if (advancedSettingsDrawer.isSubPanelOpen()) {
+                advancedSettingsDrawer.closeSubPanel();
+                return;
+            }
             advancedSettingsDrawer.dismiss();
             return;
         }
         if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
-            widgetManagerDrawer.dismiss();
+            widgetManagerDrawer.handleBackPress();
             return;
         }
         if (memoryCleanerDrawer != null && memoryCleanerDrawer.isShowing()) {
@@ -3542,7 +3565,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 this::showRemoteFileDrawer,
                 this::showWallpaperPicker,
                 this::showWidgetManagerDrawer,
-                () -> enterSectionManagement(null),
                 this::showAdvancedSettingsDrawer);
         utilityAdapter.setOnKidModeRequestedListener(this::showKidModeControlDrawer);
         utilityAdapter.setOnMemoryCleanerRequestedListener(this::showMemoryCleanerDrawer);
@@ -3596,25 +3618,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     public void showAdvancedSettingsDrawer(View triggerView) {
         if (advancedSettingsDrawer == null) {
-            advancedSettingsDrawer = new AdvancedSettingsDrawer(this, new AdvancedSettingsDrawer.OnAdvancedActionsListener() {
-                @Override
-                public void onManageWidgets() {
-                    if (widgetAdapter != null) {
-                        widgetAdapter.rebuildActiveTypes();
-                        refreshWidgetsBackground();
-                    }
-                }
-
-                @Override
-                public void onReorderSections() {
-                    enterSectionManagement(null);
-                }
-
-                @Override
-                public void onToggleReducedMotion(boolean enabled) {
-                    setReducedMotion(enabled);
-                }
-            });
+            advancedSettingsDrawer = new AdvancedSettingsDrawer(this, this::setReducedMotion);
         }
         advancedSettingsDrawer.show(triggerView);
     }
@@ -3628,10 +3632,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             widgetManagerDrawer = new WidgetManagerDrawer(this);
         }
         widgetManagerDrawer.show(triggerView);
-    }
-
-    public void openAdvancedSettingsForWidgets() {
-        showWidgetManagerDrawer();
     }
 
     public void showMemoryCleanerDrawer(View triggerView) {

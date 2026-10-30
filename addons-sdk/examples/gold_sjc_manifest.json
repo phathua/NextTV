@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "template": "hero_metric",
   "description": "Cập nhật giá vàng miếng SJC và vàng nhẫn 9999 theo thời gian thực",
-  "refreshIntervalSec": 1800,
+  "refreshIntervalSec": 300,
   "endpoint": "https://api.example.com/api/v1/widgets/batch?ids=gold",
   "defaultEnabled": true
 }

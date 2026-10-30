@@ -17,12 +17,22 @@ import android.widget.Toast;
 
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
+import com.next.tv.launcher.UtilitySectionAdapter;
 
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
 
 public final class WidgetManagerDrawer {
+
+    private static final int COLOR_TEXT_PRIMARY = 0xFFF4F4F5;
+    private static final int COLOR_TEXT_MUTED = 0xFF71717A;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFA1A1AA;
+    private static final int COLOR_TEXT_FOCUSED = 0xFF09090B;
+    private static final int COLOR_TEXT_DESC_FOCUSED = 0xFF52525B;
+    private static final int COLOR_ACCENT_CYAN = 0xFF38BDF8;
+    private static final int COLOR_STATUS_GREEN = 0xFF22C55E;
+    private static final int COLOR_ICON_DEFAULT = 0xFFE4E4E7;
 
     private static final int STATE_MAIN = 0;
     private static final int STATE_REORDER = 1;
@@ -99,18 +109,19 @@ public final class WidgetManagerDrawer {
         }
     }
 
-    private void handleBackPress() {
+    public boolean handleBackPress() {
         if (movingWidgetIndex != -1) {
             movingWidgetIndex = -1;
             refreshWidgetReorderList();
-            return;
+            return true;
         }
         if (currentState != STATE_MAIN) {
             stopConfigServer();
             showMainMenu();
-        } else {
-            dismiss();
+            return true;
         }
+        dismiss();
+        return false;
     }
 
     public void showMainMenu() {
@@ -161,6 +172,7 @@ public final class WidgetManagerDrawer {
             final boolean isBeingMoved = (movingWidgetIndex == index);
 
             LinearLayout row = new LinearLayout(activity);
+            row.setTag(i);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
@@ -179,14 +191,14 @@ public final class WidgetManagerDrawer {
 
             TextView tvItemTitle = new TextView(activity);
             tvItemTitle.setText(addon.getName());
-            tvItemTitle.setTextColor(Color.parseColor(addon.isEnabled() ? "#F4F4F5" : "#71717A"));
+            tvItemTitle.setTextColor(addon.isEnabled() ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED);
             tvItemTitle.setTextSize(13f);
             textCol.addView(tvItemTitle);
 
             TextView tvBadge = new TextView(activity);
             tvBadge.setText(addon.isBuiltIn() ? "MẶC ĐỊNH" : "MỞ RỘNG");
             tvBadge.setTextSize(10f);
-            tvBadge.setTextColor(Color.parseColor(addon.isBuiltIn() ? "#71717A" : "#38BDF8"));
+            tvBadge.setTextColor(addon.isBuiltIn() ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN);
             tvBadge.setPadding(0, (int) (2 * density), 0, 0);
             textCol.addView(tvBadge);
 
@@ -196,28 +208,25 @@ public final class WidgetManagerDrawer {
                 TextView tvMoving = new TextView(activity);
                 tvMoving.setText("Đang đổi (▲/▼)");
                 tvMoving.setTextSize(11f);
-                tvMoving.setTextColor(Color.parseColor("#38BDF8"));
+                tvMoving.setTextColor(COLOR_ACCENT_CYAN);
                 tvMoving.setPadding((int) (4 * density), 0, (int) (8 * density), 0);
                 row.addView(tvMoving);
             }
 
             TextView tvStatus = new TextView(activity);
             tvStatus.setText(addon.isEnabled() ? "Bật" : "Tắt");
-            tvStatus.setTextColor(Color.parseColor(addon.isEnabled() ? "#22C55E" : "#71717A"));
+            tvStatus.setTextColor(addon.isEnabled() ? COLOR_STATUS_GREEN : COLOR_TEXT_MUTED);
             tvStatus.setTextSize(12f);
             row.addView(tvStatus);
 
             row.setOnClickListener(v -> {
-                if (movingWidgetIndex == index) {
-                    movingWidgetIndex = -1;
-                    addonMgr.saveOrderFromList(list);
-                    refreshWidgetReorderList();
-                } else if (movingWidgetIndex != -1) {
+                int cur = (int) v.getTag();
+                if (movingWidgetIndex == cur || movingWidgetIndex != -1) {
                     movingWidgetIndex = -1;
                     addonMgr.saveOrderFromList(list);
                     refreshWidgetReorderList();
                 } else {
-                    movingWidgetIndex = index;
+                    movingWidgetIndex = cur;
                     refreshWidgetReorderList();
                 }
             });
@@ -232,7 +241,7 @@ public final class WidgetManagerDrawer {
 
             row.setOnFocusChangeListener((v, hasFocus) -> {
                 v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                tvItemTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : (addon.isEnabled() ? "#F4F4F5" : "#71717A")));
+                tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (addon.isEnabled() ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED));
             });
 
             row.setOnKeyListener((v, keyCode, event) -> {
@@ -241,25 +250,45 @@ public final class WidgetManagerDrawer {
                         dismiss();
                         return true;
                     }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_UP && movingWidgetIndex == index) {
-                        if (index > 0) {
-                            addonMgr.moveAddonOrder(index, index - 1);
-                            movingWidgetIndex = index - 1;
-                            refreshWidgetReorderList();
-                        }
-                        return true;
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        return true; // Trap boundary
                     }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && movingWidgetIndex == index) {
-                        if (index < list.size() - 1) {
-                            addonMgr.moveAddonOrder(index, index + 1);
-                            movingWidgetIndex = index + 1;
-                            refreshWidgetReorderList();
-                        }
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        handleBackPress();
                         return true;
                     }
                     if (keyCode == KeyEvent.KEYCODE_BACK) {
                         handleBackPress();
                         return true;
+                    }
+                    if (movingWidgetIndex != -1) {
+                        int cur = (int) v.getTag();
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                            if (cur > 0) {
+                                View prevView = containerItems.getChildAt(cur);
+                                addonMgr.moveAddonOrder(cur, cur - 1);
+                                v.setTag(cur - 1);
+                                if (prevView != null) prevView.setTag(cur);
+                                containerItems.removeView(v);
+                                containerItems.addView(v, cur);
+                                movingWidgetIndex = cur - 1;
+                                v.requestFocus();
+                            }
+                            return true;
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            if (cur < list.size() - 1) {
+                                View nextView = containerItems.getChildAt(cur + 2);
+                                addonMgr.moveAddonOrder(cur, cur + 1);
+                                v.setTag(cur + 1);
+                                if (nextView != null) nextView.setTag(cur);
+                                containerItems.removeView(v);
+                                containerItems.addView(v, cur + 2);
+                                movingWidgetIndex = cur + 1;
+                                v.requestFocus();
+                            }
+                            return true;
+                        }
                     }
                 }
                 return false;
@@ -286,13 +315,17 @@ public final class WidgetManagerDrawer {
 
         TextView tvLoading = new TextView(activity);
         tvLoading.setText("Đang nạp danh mục trực tuyến...");
-        tvLoading.setTextColor(Color.parseColor("#71717A"));
+        tvLoading.setTextColor(COLOR_TEXT_MUTED);
         tvLoading.setTextSize(13f);
         tvLoading.setPadding((int) (14 * density), (int) (16 * density), (int) (14 * density), (int) (16 * density));
         containerItems.addView(tvLoading);
 
         WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
         addonMgr.fetchStoreCatalog((catalog, success) -> {
+            if (!isShowing || currentState != STATE_STORE || activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+
             while (containerItems.getChildCount() > 1) {
                 containerItems.removeViewAt(1);
             }
@@ -322,13 +355,13 @@ public final class WidgetManagerDrawer {
 
                 TextView tvItemTitle = new TextView(activity);
                 tvItemTitle.setText(addon.getName());
-                tvItemTitle.setTextColor(Color.parseColor("#F4F4F5"));
+                tvItemTitle.setTextColor(COLOR_TEXT_PRIMARY);
                 tvItemTitle.setTextSize(13f);
                 textCol.addView(tvItemTitle);
 
                 TextView tvDesc = new TextView(activity);
                 tvDesc.setText(addon.getDescription() != null && !addon.getDescription().isEmpty() ? addon.getDescription() : addon.getAuthor());
-                tvDesc.setTextColor(Color.parseColor("#71717A"));
+                tvDesc.setTextColor(COLOR_TEXT_MUTED);
                 tvDesc.setTextSize(11f);
                 tvDesc.setPadding(0, (int) (2 * density), 0, 0);
                 textCol.addView(tvDesc);
@@ -337,7 +370,7 @@ public final class WidgetManagerDrawer {
 
                 TextView tvAction = new TextView(activity);
                 tvAction.setText(isInst ? "Đã cài" : "Cài đặt");
-                tvAction.setTextColor(Color.parseColor(isInst ? "#71717A" : "#38BDF8"));
+                tvAction.setTextColor(isInst ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN);
                 tvAction.setTextSize(12f);
                 tvAction.setPadding((int) (8 * density), 0, 0, 0);
                 row.addView(tvAction);
@@ -361,15 +394,22 @@ public final class WidgetManagerDrawer {
 
                 row.setOnFocusChangeListener((v, hasFocus) -> {
                     v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                    tvItemTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
-                    tvDesc.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#71717A"));
-                    tvAction.setTextColor(Color.parseColor(hasFocus ? "#09090B" : (isInst ? "#71717A" : "#38BDF8")));
+                    tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+                    tvDesc.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_MUTED);
+                    tvAction.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (isInst ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN));
                 });
 
                 row.setOnKeyListener((v, keyCode, event) -> {
                     if (event.getAction() == KeyEvent.ACTION_DOWN) {
                         if (keyCode == KeyEvent.KEYCODE_HOME) {
                             dismiss();
+                            return true;
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                            return true; // Trap boundary
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                            handleBackPress();
                             return true;
                         }
                         if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -416,6 +456,7 @@ public final class WidgetManagerDrawer {
         int port = addonConfigServer.getListeningPort();
         if (port <= 0) port = 8888;
         String serverUrl = "http://" + ip + ":" + port + "/?token=" + sessionToken;
+        String displayUrl = "http://" + ip + ":" + port;
 
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -441,15 +482,22 @@ public final class WidgetManagerDrawer {
         card.addView(ivQr);
 
         TextView tvUrl = new TextView(activity);
-        tvUrl.setText(serverUrl);
-        tvUrl.setTextColor(Color.parseColor("#38BDF8"));
+        tvUrl.setText(displayUrl);
+        tvUrl.setTextColor(COLOR_ACCENT_CYAN);
         tvUrl.setTextSize(14f);
-        tvUrl.setPadding(0, (int) (14 * density), 0, (int) (6 * density));
+        tvUrl.setPadding(0, (int) (14 * density), 0, (int) (4 * density));
         card.addView(tvUrl);
+
+        TextView tvPin = new TextView(activity);
+        tvPin.setText("Mã xác thực: " + sessionToken);
+        tvPin.setTextColor(COLOR_TEXT_PRIMARY);
+        tvPin.setTextSize(12f);
+        tvPin.setPadding(0, 0, 0, (int) (6 * density));
+        card.addView(tvPin);
 
         TextView tvHint = new TextView(activity);
         tvHint.setText("Kết nối cùng Wi-Fi và quét mã bằng camera điện thoại để cài đặt hoặc sắp xếp.");
-        tvHint.setTextColor(Color.parseColor("#A1A1AA"));
+        tvHint.setTextColor(COLOR_TEXT_SECONDARY);
         tvHint.setTextSize(11f);
         tvHint.setGravity(Gravity.CENTER);
         card.addView(tvHint);
@@ -459,6 +507,9 @@ public final class WidgetManagerDrawer {
                 if (keyCode == KeyEvent.KEYCODE_HOME) {
                     dismiss();
                     return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    return true; // Trap boundary
                 }
                 if (keyCode == KeyEvent.KEYCODE_BACK) {
                     stopConfigServer();
@@ -478,7 +529,7 @@ public final class WidgetManagerDrawer {
         EditText input = new EditText(activity);
         input.setHint("https://example.com/cau-hinh.json");
         input.setTextColor(Color.WHITE);
-        input.setHintTextColor(Color.parseColor("#71717A"));
+        input.setHintTextColor(COLOR_TEXT_MUTED);
         input.setTextSize(13f);
         input.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
 
@@ -491,11 +542,14 @@ public final class WidgetManagerDrawer {
                     if (!url.isEmpty()) {
                         Toast.makeText(activity, "Đang tải cấu hình tiện ích...", Toast.LENGTH_SHORT).show();
                         WidgetAddonManager.getInstance(activity).installFromUrl(url, (success, msg, addon) -> {
-                            if (success) {
-                                Toast.makeText(activity, "Cài đặt thành công: " + (addon != null ? addon.getName() : ""), Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(activity, "Cài đặt thất bại: " + msg, Toast.LENGTH_LONG).show();
-                            }
+                            if (activity.isFinishing() || activity.isDestroyed()) return;
+                            activity.runOnUiThread(() -> {
+                                if (success) {
+                                    Toast.makeText(activity, "Cài đặt thành công: " + (addon != null ? addon.getName() : ""), Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(activity, "Cài đặt thất bại: " + msg, Toast.LENGTH_LONG).show();
+                                }
+                            });
                         });
                     }
                 })
@@ -520,7 +574,7 @@ public final class WidgetManagerDrawer {
 
         TextView tvBack = new TextView(activity);
         tvBack.setText("< " + title);
-        tvBack.setTextColor(Color.parseColor("#38BDF8"));
+        tvBack.setTextColor(COLOR_ACCENT_CYAN);
         tvBack.setTextSize(13f);
         tvBack.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         row.addView(tvBack);
@@ -531,7 +585,7 @@ public final class WidgetManagerDrawer {
 
         row.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvBack.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#38BDF8"));
+            tvBack.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ACCENT_CYAN);
         });
 
         row.setOnKeyListener((v, keyCode, event) -> {
@@ -540,7 +594,10 @@ public final class WidgetManagerDrawer {
                     dismiss();
                     return true;
                 }
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    return true; // Trap boundary
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
                     if (onClick != null) onClick.run();
                     return true;
                 }
@@ -572,7 +629,7 @@ public final class WidgetManagerDrawer {
         LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
         lpIcon.setMarginEnd((int) (14 * density));
         ivIcon.setLayoutParams(lpIcon);
-        ivIcon.setColorFilter(Color.parseColor("#E4E4E7"));
+        ivIcon.setColorFilter(COLOR_ICON_DEFAULT);
         row.addView(ivIcon);
 
         LinearLayout textCol = new LinearLayout(activity);
@@ -581,13 +638,13 @@ public final class WidgetManagerDrawer {
 
         TextView tvItemTitle = new TextView(activity);
         tvItemTitle.setText(title);
-        tvItemTitle.setTextColor(Color.parseColor("#F4F4F5"));
+        tvItemTitle.setTextColor(COLOR_TEXT_PRIMARY);
         tvItemTitle.setTextSize(14f);
         textCol.addView(tvItemTitle);
 
         TextView tvSub = new TextView(activity);
         tvSub.setText(subtitle);
-        tvSub.setTextColor(Color.parseColor("#71717A"));
+        tvSub.setTextColor(COLOR_TEXT_MUTED);
         tvSub.setTextSize(11f);
         tvSub.setPadding(0, (int) (2 * density), 0, 0);
         textCol.addView(tvSub);
@@ -599,7 +656,7 @@ public final class WidgetManagerDrawer {
         int chevSize = (int) (18 * density);
         LinearLayout.LayoutParams lpChev = new LinearLayout.LayoutParams(chevSize, chevSize);
         ivChevron.setLayoutParams(lpChev);
-        ivChevron.setColorFilter(Color.parseColor("#71717A"));
+        ivChevron.setColorFilter(COLOR_TEXT_MUTED);
         row.addView(ivChevron);
 
         row.setOnClickListener(v -> {
@@ -609,10 +666,10 @@ public final class WidgetManagerDrawer {
 
         row.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvItemTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
-            tvSub.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#71717A"));
-            ivIcon.setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#E4E4E7"));
-            ivChevron.setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#71717A"));
+            tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_MUTED);
+            ivIcon.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
+            ivChevron.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_MUTED);
         });
 
         row.setOnKeyListener((v, keyCode, event) -> {
@@ -620,6 +677,9 @@ public final class WidgetManagerDrawer {
                 if (keyCode == KeyEvent.KEYCODE_HOME) {
                     dismiss();
                     return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    return true; // Trap boundary
                 }
                 if (keyCode == KeyEvent.KEYCODE_BACK) {
                     dismiss();
@@ -653,11 +713,11 @@ public final class WidgetManagerDrawer {
         if (!isShowing || drawerView == null) return;
         stopConfigServer();
 
-        if (activity instanceof MainActivity) {
-            ((MainActivity) activity).unblockMainContentFocus();
-            ((MainActivity) activity).focusUtilityItem(1);
-        } else if (triggerView != null && triggerView.isShown()) {
+        if (triggerView != null && triggerView.isShown()) {
             triggerView.post(() -> triggerView.requestFocus());
+        } else if (activity instanceof MainActivity) {
+            ((MainActivity) activity).unblockMainContentFocus();
+            ((MainActivity) activity).focusUtilityType(UtilitySectionAdapter.TYPE_WIDGET_MANAGER);
         }
 
         if (drawerContent != null) {

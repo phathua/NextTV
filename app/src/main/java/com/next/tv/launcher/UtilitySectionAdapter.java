@@ -22,7 +22,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.clean.BackgroundAppCleaner;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
 
@@ -70,10 +69,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
         void onWidgetManagerRequested();
     }
 
-    public interface OnReorderSectionsRequestedListener {
-        void onReorderSectionsRequested();
-    }
-
     public interface OnAdvancedSettingsRequestedListener {
         void onAdvancedSettingsRequested(View triggerView);
     }
@@ -92,7 +87,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
     private final OnRemoteFileRequestedListener remoteFileListener;
     private final OnWallpaperPickerRequestedListener wallpaperPickerListener;
     private final OnWidgetManagerRequestedListener widgetManagerListener;
-    private final OnReorderSectionsRequestedListener reorderSectionsListener;
     private final OnAdvancedSettingsRequestedListener advancedSettingsListener;
     private OnMemoryCleanerRequestedListener memoryCleanerListener;
 
@@ -103,7 +97,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                                  OnRemoteFileRequestedListener remoteFileListener,
                                  OnWallpaperPickerRequestedListener wallpaperPickerListener,
                                  OnWidgetManagerRequestedListener widgetManagerListener,
-                                 OnReorderSectionsRequestedListener reorderSectionsListener,
                                  OnAdvancedSettingsRequestedListener advancedSettingsListener) {
         this.context = context;
         this.inflater = LayoutInflater.from(context);
@@ -114,7 +107,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
         this.remoteFileListener = remoteFileListener;
         this.wallpaperPickerListener = wallpaperPickerListener;
         this.widgetManagerListener = widgetManagerListener;
-        this.reorderSectionsListener = reorderSectionsListener;
         this.advancedSettingsListener = advancedSettingsListener;
         setMode(0);
     }
@@ -310,8 +302,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
             case TYPE_SETTINGS:
                 if (advancedSettingsListener != null) {
                     advancedSettingsListener.onAdvancedSettingsRequested(holder.itemView);
-                } else {
-                    showManageChoiceDialog();
                 }
                 break;
             case TYPE_WIDGET_MANAGER:
@@ -374,84 +364,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                 }
                 break;
         }
-    }
-
-    private void showManageChoiceDialog() {
-        Dialog dialog = new Dialog(context, R.style.Theme_TvHome);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            window.setDimAmount(0.65f);
-        }
-
-        View panel = inflater.inflate(R.layout.popup_inputs, null);
-        panel.setBackgroundResource(R.drawable.glass_panel);
-        panel.setPadding(20, 20, 20, 20);
-
-        LinearLayout rows = panel.findViewById(R.id.rows);
-
-        TextView titleView = new TextView(context);
-        titleView.setText("Quản lý giao diện");
-        titleView.setTextColor(Color.parseColor("#F4F4F5"));
-        titleView.setTextSize(17f);
-        titleView.setPadding(16, 6, 16, 12);
-        rows.addView(titleView);
-
-        String[] titles = new String[]{"Quản lý tiện ích", "Sắp xếp màn hình", "Cài đặt ứng dụng"};
-        Runnable[] actions = new Runnable[]{
-                () -> {
-                    if (widgetManagerListener != null) {
-                        widgetManagerListener.onWidgetManagerRequested();
-                    } else if (context instanceof MainActivity) {
-                        ((MainActivity) context).openAdvancedSettingsForWidgets();
-                    }
-                },
-                () -> {
-                    if (reorderSectionsListener != null) {
-                        reorderSectionsListener.onReorderSectionsRequested();
-                    }
-                },
-                () -> {
-                    try {
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(intent);
-                    } catch (Exception e) {
-                        try {
-                            Intent fallback = new Intent(Settings.ACTION_SETTINGS);
-                            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            context.startActivity(fallback);
-                        } catch (Exception ignored) {}
-                    }
-                }
-        };
-
-        for (int i = 0; i < titles.length; i++) {
-            final int index = i;
-            View row = inflater.inflate(R.layout.item_input, rows, false);
-            row.findViewById(R.id.icon).setVisibility(View.GONE);
-            row.findViewById(R.id.dot).setVisibility(View.GONE);
-            row.findViewById(R.id.status).setVisibility(View.GONE);
-            TextView rowTitle = row.findViewById(R.id.title);
-            rowTitle.setText(titles[i]);
-
-            row.setOnClickListener(v -> {
-                dialog.dismiss();
-                actions[index].run();
-            });
-
-            row.setOnFocusChangeListener((v, hasFocus) -> {
-                v.animate().scaleX(hasFocus ? 1.04f : 1f).scaleY(hasFocus ? 1.04f : 1f).setDuration(120).start();
-            });
-
-            rows.addView(row);
-        }
-
-        float density = context.getResources().getDisplayMetrics().density;
-        dialog.setContentView(panel, new ViewGroup.LayoutParams((int) (260 * density), ViewGroup.LayoutParams.WRAP_CONTENT));
-        dialog.show();
     }
 
     @Override

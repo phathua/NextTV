@@ -126,7 +126,8 @@ async function fetchCurrencyRates() {
 
     try {
       const res = await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json", {
-        headers: { "User-Agent": "NextTV/1.0" }
+        headers: { "User-Agent": "NextTV/1.0" },
+        signal: AbortSignal.timeout(3500)
       });
       if (res.ok) {
         const json = await res.json();
@@ -139,7 +140,8 @@ async function fetchCurrencyRates() {
     if (!usdData) {
       try {
         const res = await fetch("https://latest.currency-api.pages.dev/v1/currencies/usd.json", {
-          headers: { "User-Agent": "NextTV/1.0" }
+          headers: { "User-Agent": "NextTV/1.0" },
+          signal: AbortSignal.timeout(3500)
         });
         if (res.ok) {
           const json = await res.json();
@@ -153,7 +155,8 @@ async function fetchCurrencyRates() {
     if (!usdData) {
       try {
         const res = await fetch("https://open.er-api.com/v6/latest/USD", {
-          headers: { "User-Agent": "NextTV/1.0" }
+          headers: { "User-Agent": "NextTV/1.0" },
+          signal: AbortSignal.timeout(3500)
         });
         if (res.ok) {
           const json = await res.json();
@@ -203,21 +206,17 @@ async function fetchCurrencyRates() {
   return {
     template: "hero_metric",
     headerLeft: "Tỷ giá Ngoại tệ",
-    headerRight: "VND",
-    rawTemp: 25760,
+    headerRight: "--",
+    rawTemp: 0,
     heroUnit: "đ/USD",
-    subItems: [
-      { label: "EUR", title: "1 EUR", temp: 28800 },
-      { label: "JPY", title: "1 JPY", temp: 163.5 },
-      { label: "KRW", title: "1 KRW", temp: 18.6 }
-    ]
+    subItems: []
   };
 }
 
 /**
  * Tiện ích: Giá vàng SJC (NWP-1 hero_metric)
  * Nguồn 1: BTMC API giá vàng trong nước (SJC & Nhẫn tròn trơn 999.9)
- * Nguồn 2: Binance PAXG/USDT (Vàng thế giới quy đổi)
+ * Nguồn 2: Gold-API & Binance PAXG (Vàng thế giới quy đổi)
  * Nguồn 3: Last Known Good Memory Cache
  */
 async function fetchGoldPrice() {
@@ -226,10 +225,11 @@ async function fetchGoldPrice() {
     let sjcBuy = 0, sjcSell = 0;
     let ringBuy = 0, ringSell = 0;
 
-    // Nguồn 1: BTMC API
+    // Nguồn 1: BTMC API trong nước (thoát sớm O(1) khi tìm thấy)
     try {
       const res = await fetch("https://api.btmc.vn/api/BTMCAPI/getpricebtmc?key=3kd8ub1k9MgmR44tPU6h8H5g3Ar02t", {
-        headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" }
+        headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" },
+        signal: AbortSignal.timeout(3500)
       });
       if (res.ok) {
         const data = await res.json();
@@ -248,22 +248,42 @@ async function fetchGoldPrice() {
               }
             }
           }
+          if (sjcSell > 0 && ringSell > 0) {
+            break;
+          }
         }
       }
     } catch (e1) {
       console.warn("BTMC gold fetch failed: " + e1.message);
     }
 
-    // Nguồn 2: Binance PAXG/USDT (Giá vàng thế giới quy đổi)
+    // Nguồn 2: Vàng thế giới quy đổi (Gold-API & Binance PAXG)
     let worldGoldOunce = 0;
     try {
-      const paxgRes = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT");
-      if (paxgRes.ok) {
-        const paxgJson = await paxgRes.json();
-        worldGoldOunce = parseFloat(paxgJson.price || 0);
+      const gRes = await fetch("https://api.gold-api.com/price/XAU", {
+        headers: { "User-Agent": "NextTV/1.0" },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (gRes.ok) {
+        const gJson = await gRes.json();
+        worldGoldOunce = parseFloat(gJson.price || 0);
       }
     } catch (e2) {
-      console.warn("Binance PAXG gold fetch failed: " + e2.message);
+      console.warn("Gold-API fetch failed: " + e2.message);
+    }
+
+    if (!worldGoldOunce) {
+      try {
+        const paxgRes = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT", {
+          signal: AbortSignal.timeout(3500)
+        });
+        if (paxgRes.ok) {
+          const paxgJson = await paxgRes.json();
+          worldGoldOunce = parseFloat(paxgJson.price || 0);
+        }
+      } catch (e3) {
+        console.warn("Binance PAXG gold fetch failed: " + e3.message);
+      }
     }
 
     if (sjcSell > 0) {
@@ -272,12 +292,12 @@ async function fetchGoldPrice() {
         headerLeft: "Vàng SJC 9999",
         rawTemp: Number(sjcSell.toFixed(1)),
         heroUnit: "triệu/lượng",
-        headerRight: "+0.5%",
+        headerRight: "SJC & 9999",
         subItems: [
           { label: "Mua vào", title: "SJC Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
           { label: "Bán ra", title: "SJC Bán ra", temp: Number(sjcSell.toFixed(1)) },
           { label: "Nhẫn 9999", title: "Nhẫn 999.9", temp: Number((ringSell || (sjcSell - 1.2)).toFixed(1)) },
-          { label: "Thế giới", title: "Vàng Thế Giới", temp: Math.round(worldGoldOunce || 3900) }
+          { label: "Thế giới", title: "Vàng Thế Giới", temp: Math.round(worldGoldOunce || 3890) }
         ]
       };
       lastKnownGoodFinance.set(cacheKey, result);
@@ -288,7 +308,7 @@ async function fetchGoldPrice() {
       const approxWorldTaelVnd = (worldGoldOunce * 1.20565 * 25700) / 1000000;
       const result = {
         template: "hero_metric",
-        headerLeft: "Vàng Thế Giới (PAXG)",
+        headerLeft: "Vàng Thế Giới",
         rawTemp: Number(approxWorldTaelVnd.toFixed(1)),
         heroUnit: "triệu/lượng",
         headerRight: "Quốc tế",
@@ -312,14 +332,10 @@ async function fetchGoldPrice() {
   return {
     template: "hero_metric",
     headerLeft: "Vàng SJC 9999",
-    rawTemp: 141.4,
+    headerRight: "--",
+    rawTemp: 0,
     heroUnit: "triệu/lượng",
-    headerRight: "+0.5%",
-    subItems: [
-      { label: "Mua vào", title: "SJC Mua vào", temp: 136.2 },
-      { label: "Bán ra", title: "SJC Bán ra", temp: 141.4 },
-      { label: "Nhẫn 9999", title: "Nhẫn 999.9", temp: 140.2 }
-    ]
+    subItems: []
   };
 }
 
@@ -338,8 +354,8 @@ async function fetchCryptoPrice() {
     // Nguồn 1: Binance
     try {
       const [res24h, resMulti] = await Promise.all([
-        fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT"),
-        fetch("https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22,%22BNBUSDT%22%5D")
+        fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { signal: AbortSignal.timeout(3500) }),
+        fetch("https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22,%22BNBUSDT%22%5D", { signal: AbortSignal.timeout(3500) })
       ]);
 
       if (res24h.ok) {
@@ -363,7 +379,9 @@ async function fetchCryptoPrice() {
     // Nguồn 2: CoinGecko Fallback
     if (!btcPrice) {
       try {
-        const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true");
+        const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true", {
+          signal: AbortSignal.timeout(3500)
+        });
         if (cgRes.ok) {
           const cg = await cgRes.json();
           btcPrice = cg.bitcoin?.usd || 0;
@@ -405,72 +423,82 @@ async function fetchCryptoPrice() {
   return {
     template: "hero_metric",
     headerLeft: "Bitcoin (BTC)",
-    rawTemp: 77280,
+    headerRight: "--",
+    rawTemp: 0,
     heroUnit: "USD",
-    headerRight: "-2.5%",
-    subItems: [
-      { label: "ETH", title: "Ethereum", temp: 2245 },
-      { label: "SOL", title: "Solana", temp: 95.0 },
-      { label: "BNB", title: "BNB", temp: 701 }
-    ]
+    subItems: []
   };
 }
 
 /**
- * Tiện ích: Thị trường Chứng khoán (NWP-1 hero_metric)
- * Chỉ số VN-Index, S&P 500, NASDAQ thời gian thực
+ * Tiện ích: Thị trường Chứng khoán Việt Nam (NWP-1 hero_metric)
+ * Nguồn 1: EnTrade / DNSE (VNINDEX, VN30, HNX, UPCOM)
+ * Nguồn 2: Yahoo Finance (%5EVNINDEX.VN)
+ * Nguồn 3: Last Known Good Memory Cache
  */
 async function fetchStockMarket() {
   const cacheKey = "stock_market";
   try {
-    let vnIndex = 0, vnChange = 0;
-    let sp500 = 0, nasdaq = 0;
+    const symbols = ["VNINDEX", "VN30", "HNX", "UPCOM"];
+    const now = Math.floor(Date.now() / 1000);
+    const stockMap = {};
 
-    try {
-      const [resVn, resSp, resNas] = await Promise.all([
-        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EVNINDEX.VN?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } }),
-        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } }),
-        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EIXIC?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } })
-      ]);
-
-      if (resVn.ok) {
-        const jVn = await resVn.json();
-        const meta = jVn?.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice) {
-          vnIndex = meta.regularMarketPrice;
-          const prev = meta.chartPreviousClose || vnIndex;
-          vnChange = ((vnIndex - prev) / prev) * 100;
+    await Promise.allSettled(symbols.map(async (s) => {
+      try {
+        const res = await fetch(`https://services.entrade.com.vn/chart-api/v2/ohlcs/index?resolution=1D&symbol=${s}&from=${now - 86400 * 7}&to=${now}`, {
+          headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" },
+          signal: AbortSignal.timeout(3500)
+        });
+        if (res.ok) {
+          const j = await res.json();
+          if (j?.c?.length > 0) {
+            const last = j.c[j.c.length - 1];
+            const prev = j.c.length > 1 ? j.c[j.c.length - 2] : last;
+            const pct = prev > 0 ? ((last - prev) / prev) * 100 : 0;
+            stockMap[s] = { last, pct };
+          }
         }
+      } catch (err) {
+        console.warn(`Stock ${s} fetch error: ${err.message}`);
       }
+    }));
 
-      if (resSp.ok) {
-        const jSp = await resSp.json();
-        const meta = jSp?.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice) sp500 = meta.regularMarketPrice;
+    if (!stockMap.VNINDEX) {
+      try {
+        const resVn = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EVNINDEX.VN?interval=1d", {
+          headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" },
+          signal: AbortSignal.timeout(3500)
+        });
+        if (resVn.ok) {
+          const jVn = await resVn.json();
+          const meta = jVn?.chart?.result?.[0]?.meta;
+          if (meta?.regularMarketPrice) {
+            const last = meta.regularMarketPrice;
+            const prev = meta.chartPreviousClose || last;
+            const pct = prev > 0 ? ((last - prev) / prev) * 100 : 0;
+            stockMap.VNINDEX = { last, pct };
+          }
+        }
+      } catch (e) {
+        console.warn("Yahoo VN-Index fallback failed: " + e.message);
       }
-
-      if (resNas.ok) {
-        const jNas = await resNas.json();
-        const meta = jNas?.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice) nasdaq = meta.regularMarketPrice;
-      }
-    } catch (e1) {
-      console.warn("Stock fetch failed: " + e1.message);
     }
 
-    if (vnIndex > 0) {
-      const changeSign = vnChange >= 0 ? "+" : "";
+    if (stockMap.VNINDEX) {
+      const vnData = stockMap.VNINDEX;
+      const changeSign = vnData.pct >= 0 ? "+" : "";
+      const subItems = [];
+      if (stockMap.VN30) subItems.push({ label: "VN30", title: "VN30", temp: Number(stockMap.VN30.last.toFixed(1)) });
+      if (stockMap.HNX) subItems.push({ label: "HNX", title: "HNX-Index", temp: Number(stockMap.HNX.last.toFixed(1)) });
+      if (stockMap.UPCOM) subItems.push({ label: "UPCOM", title: "UPCoM", temp: Number(stockMap.UPCOM.last.toFixed(1)) });
+
       const result = {
         template: "hero_metric",
         headerLeft: "VN-Index",
-        rawTemp: Number(vnIndex.toFixed(1)),
+        rawTemp: Number(vnData.last.toFixed(1)),
         heroUnit: "điểm",
-        headerRight: `${changeSign}${vnChange.toFixed(2)}%`,
-        subItems: [
-          { label: "VNINDEX", title: "VN-Index", temp: Number(vnIndex.toFixed(1)) },
-          { label: "S&P 500", title: "S&P 500", temp: Math.round(sp500 || 7570) },
-          { label: "NASDAQ", title: "Nasdaq", temp: Math.round(nasdaq || 25380) }
-        ]
+        headerRight: `${changeSign}${vnData.pct.toFixed(2)}%`,
+        subItems
       };
       lastKnownGoodFinance.set(cacheKey, result);
       return result;
@@ -486,14 +514,10 @@ async function fetchStockMarket() {
   return {
     template: "hero_metric",
     headerLeft: "VN-Index",
-    rawTemp: 1741.6,
+    headerRight: "--",
+    rawTemp: 0,
     heroUnit: "điểm",
-    headerRight: "-0.80%",
-    subItems: [
-      { label: "VNINDEX", title: "VN-Index", temp: 1741.6 },
-      { label: "S&P 500", title: "S&P 500", temp: 7577 },
-      { label: "NASDAQ", title: "Nasdaq", temp: 25386 }
-    ]
+    subItems: []
   };
 }
 
@@ -827,7 +851,7 @@ export default {
       if (requestedIds.includes("gold")) {
         tasks.gold = getCachedOrFetch(
           `https://nexttv-edge.local/gold/price`,
-          1800,
+          300,
           () => fetchGoldPrice(),
           ctx
         );
@@ -835,7 +859,7 @@ export default {
       if (requestedIds.includes("crypto")) {
         tasks.crypto = getCachedOrFetch(
           `https://nexttv-edge.local/crypto/price`,
-          300,
+          60,
           () => fetchCryptoPrice(),
           ctx
         );
@@ -851,7 +875,7 @@ export default {
       if (requestedIds.includes("stocks")) {
         tasks.stocks = getCachedOrFetch(
           `https://nexttv-edge.local/stocks/market`,
-          300,
+          120,
           () => fetchStockMarket(),
           ctx
         );

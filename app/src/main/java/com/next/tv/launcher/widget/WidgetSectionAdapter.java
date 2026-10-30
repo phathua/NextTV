@@ -663,7 +663,7 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
         options.add("Cài đặt tiện ích");
         actions.add(() -> {
             if (context instanceof MainActivity) {
-                ((MainActivity) context).openAdvancedSettingsForWidgets();
+                ((MainActivity) context).showWidgetManagerDrawer();
             }
         });
 
