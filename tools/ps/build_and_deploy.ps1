@@ -10,6 +10,9 @@ $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 Set-Location $repoRoot
 
+# Ensure ADB is available
+& "$PSScriptRoot\ensure_adb.ps1"
+
 Write-Host ">>> [1/4] Generating Native Secrets Header..." -ForegroundColor Cyan
 & "$PSScriptRoot\generate_header.ps1"
 

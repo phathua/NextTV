@@ -39,7 +39,7 @@ foreach ($t in $tasks) {
 
 if ($found) {
     Write-Host "[+] Found Android TV at: $found" -ForegroundColor Green
-    Write-Output $found
+    Write-Output "__FOUND_IP__:$found"
 } else {
     Write-Host "[!] No active Android TV found on port 5555." -ForegroundColor Yellow
 }

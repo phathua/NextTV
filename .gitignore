@@ -57,3 +57,7 @@ traces/
 backup/
 shots/
 .agents/
+
+# Local Platform Tools & Archive Fallback
+tools/platform-tools/
+*.zip
