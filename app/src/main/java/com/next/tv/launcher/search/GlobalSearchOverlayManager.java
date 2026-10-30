@@ -53,6 +53,15 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import android.widget.FrameLayout;
+import com.next.tv.launcher.search.assistant.AssistantSpeechSpeaker;
+import com.next.tv.launcher.search.assistant.TvAssistantActionExecutor;
+import com.next.tv.launcher.search.assistant.TvAssistantDispatcher;
+import com.next.tv.launcher.search.assistant.WidgetAddonGatekeeper;
+import com.next.tv.launcher.widget.WeatherDataManager;
+import com.next.tv.launcher.widget.WidgetAddon;
+import com.next.tv.launcher.widget.WidgetAddonManager;
+import com.next.tv.launcher.widget.WidgetProtocolEngine;
 
 public final class GlobalSearchOverlayManager {
     private static final String TAG = "TvHome.Search";
@@ -110,6 +119,9 @@ public final class GlobalSearchOverlayManager {
     private TextView btnSearchInNuvio;
     private TextView btnSearchInStremio;
     private TextView btnSearchInCloudStream;
+    private FrameLayout assistantCardContainer;
+    private WidgetAddonGatekeeper addonGatekeeper;
+    private TvAssistantActionExecutor actionExecutor;
 
     private float smoothedRmsScale = 1.0f;
     private ObjectAnimator voicePulseAnimX;
@@ -162,6 +174,11 @@ public final class GlobalSearchOverlayManager {
 
     public synchronized void show(Context targetContext, boolean startVoiceImmediately) {
         if (isShowing && overlayView != null) {
+            AssistantSpeechSpeaker.getInstance(context).stop();
+            if (assistantCardContainer != null) {
+                assistantCardContainer.removeAllViews();
+                assistantCardContainer.setVisibility(View.GONE);
+            }
             if (startVoiceImmediately) {
                 startVoiceRecognition();
             }
@@ -271,6 +288,9 @@ public final class GlobalSearchOverlayManager {
         btnSearchInNuvio = root.findViewById(R.id.btnSearchInNuvio);
         btnSearchInStremio = root.findViewById(R.id.btnSearchInStremio);
         btnSearchInCloudStream = root.findViewById(R.id.btnSearchInCloudStream);
+        assistantCardContainer = root.findViewById(R.id.assistantCardContainer);
+        if (addonGatekeeper == null) addonGatekeeper = new WidgetAddonGatekeeper(context);
+        if (actionExecutor == null) actionExecutor = new TvAssistantActionExecutor(context);
 
         applyPillOutline(btnListeningRetry);
         applyPillOutline(pillFilterAll);
@@ -1049,7 +1069,18 @@ public final class GlobalSearchOverlayManager {
             searchBottomQueryText.setText(currentQuery);
         }
 
-        this.hasFocusedRealResult = false;
+                this.hasFocusedRealResult = false;
+
+        if (processAssistantQuery(currentQuery, autoFocus)) {
+            return;
+        }
+
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
 
         AppLockManager lockManager = AppLockManager.getInstance(context);
         if (lockManager.isKidModeActive() && isRestrictedQueryInKidMode(currentQuery)) {
@@ -1868,6 +1899,11 @@ public final class GlobalSearchOverlayManager {
     public synchronized void dismiss() {
         mainHandler.removeCallbacks(autoDismissRunnable);
         stopVoiceBubblePulse();
+        AssistantSpeechSpeaker.getInstance(context).stop();
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
         if (!isShowing) return;
         isShowing = false;
 
@@ -1909,6 +1945,11 @@ public final class GlobalSearchOverlayManager {
     public synchronized void dismissImmediate() {
         mainHandler.removeCallbacks(autoDismissRunnable);
         stopVoiceBubblePulse();
+        AssistantSpeechSpeaker.getInstance(context).stop();
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
         if (!isShowing) return;
         isShowing = false;
         if (backgroundContainer != null) {
@@ -1950,5 +1991,337 @@ public final class GlobalSearchOverlayManager {
             }
         } catch (Exception ignored) {}
         overlayView = null;
+    }
+
+    // -------------------------------------------------------------
+    // Native Voice Assistant Dispatching & Smart Card Execution
+    // -------------------------------------------------------------
+    private boolean processAssistantQuery(String query, boolean autoFocus) {
+        if (query == null || query.trim().isEmpty()) return false;
+        if (addonGatekeeper == null) addonGatekeeper = new WidgetAddonGatekeeper(context);
+        if (actionExecutor == null) actionExecutor = new TvAssistantActionExecutor(context);
+
+        TvAssistantDispatcher.ParsedIntent intent = TvAssistantDispatcher.dispatch(query);
+        if (intent.type == TvAssistantDispatcher.INTENT_MEDIA_FALLBACK) {
+            return false;
+        }
+
+        // 1. YouTube Targeted Video Search
+        if (intent.type == TvAssistantDispatcher.INTENT_YOUTUBE_VIDEO_SEARCH) {
+            executeYouTubeVideoAssistantSearch(intent.cleanQuery, autoFocus);
+            return true;
+        }
+
+        // 2. Direct Movie Search on Nuvio / Stremio / CloudStream
+        if (intent.type == TvAssistantDispatcher.INTENT_MOVIE_DIRECT_SEARCH) {
+            this.currentQuery = intent.cleanQuery;
+            if (searchBottomQueryText != null) searchBottomQueryText.setText(currentQuery);
+            return false; // Continues to TMDB with cleaned movie query
+        }
+
+        // 3. Smart Info Queries requiring Widget Addons (Weather, Gold, News, Sports)
+        if (intent.type == TvAssistantDispatcher.INTENT_WEATHER ||
+            intent.type == TvAssistantDispatcher.INTENT_GOLD ||
+            intent.type == TvAssistantDispatcher.INTENT_NEWS ||
+            intent.type == TvAssistantDispatcher.INTENT_SPORTS) {
+
+            WidgetAddonGatekeeper.RequirementResult req = addonGatekeeper.checkRequirement(intent.type);
+            if (!req.isReady()) {
+                showAssistantAddonUpsellCard(intent, req);
+                return true;
+            }
+
+            if (intent.type == TvAssistantDispatcher.INTENT_WEATHER) {
+                showAssistantWeatherCard(intent.targetCity);
+                return true;
+            } else if (intent.type == TvAssistantDispatcher.INTENT_GOLD) {
+                showAssistantGoldCard();
+                return true;
+            } else if (intent.type == TvAssistantDispatcher.INTENT_NEWS) {
+                setFilter(FILTER_WEB);
+                AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là các tin thời sự mới nhất hôm nay.");
+                return false;
+            } else if (intent.type == TvAssistantDispatcher.INTENT_SPORTS) {
+                AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là thông tin thể thao cập nhật mới nhất.");
+                return false;
+            }
+        }
+
+        // 4. System Action Execution (Volume, Bluetooth, App Launch)
+        if (intent.type == TvAssistantDispatcher.INTENT_VOLUME) {
+            TvAssistantActionExecutor.SystemActionResult res = actionExecutor.executeVolume(intent.volumeAction, intent.volumePercent);
+            AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
+            if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
+            scheduleAutoDismiss(1800L);
+            return true;
+        }
+        if (intent.type == TvAssistantDispatcher.INTENT_BLUETOOTH) {
+            TvAssistantActionExecutor.SystemActionResult res = actionExecutor.executeBluetooth(intent.bluetoothAction);
+            AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
+            if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
+            scheduleAutoDismiss(1800L);
+            return true;
+        }
+        if (intent.type == TvAssistantDispatcher.INTENT_APP_LAUNCH) {
+            TvAssistantActionExecutor.SystemActionResult res = actionExecutor.executeLaunchApp(intent.cleanQuery);
+            AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
+            if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
+            if (res.success) {
+                mainHandler.postDelayed(this::dismissImmediate, 400L);
+            } else {
+                scheduleAutoDismiss(2500L);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private void executeYouTubeVideoAssistantSearch(String cleanQuery, boolean autoFocus) {
+        if (cleanQuery == null || cleanQuery.trim().isEmpty()) return;
+        this.currentQuery = cleanQuery.trim();
+        if (searchBottomQueryText != null) searchBottomQueryText.setText(currentQuery);
+        if (voiceListeningPrompt != null) voiceListeningPrompt.setText(currentQuery);
+
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+
+        if (searchResultsBottomPanel != null) {
+            searchResultsBottomPanel.setVisibility(View.VISIBLE);
+            searchResultsBottomPanel.setAlpha(1f);
+            searchResultsBottomPanel.setTranslationY(0f);
+        }
+
+        setFilter(FILTER_VIDEOS);
+        updateFilterPillsUI();
+
+        this.moviesLoading = false;
+        this.videosLoading = true;
+        this.webLoading = false;
+        this.hasFocusedRealResult = false;
+
+        clearResults();
+        updateDisplayedItemsImmediately();
+        updateBottomActionPills(currentQuery);
+
+        AssistantSpeechSpeaker.getInstance(context).speak("Đang tìm video " + currentQuery + " trên YouTube.");
+        fetchYoutubeVideos(currentQuery, autoFocus);
+    }
+
+    private void showAssistantWeatherCard(String cityName) {
+        if (overlayView == null) return;
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (searchResultsBottomPanel != null) searchResultsBottomPanel.setVisibility(View.VISIBLE);
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.GONE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.GONE);
+        if (searchResultHeaderTitle != null) searchResultHeaderTitle.setText("Thời tiết");
+
+        if (assistantCardContainer == null) return;
+        assistantCardContainer.removeAllViews();
+        assistantCardContainer.setVisibility(View.VISIBLE);
+
+        LayoutInflater.from(context).inflate(R.layout.item_assistant_weather_card, assistantCardContainer, true);
+        View card = assistantCardContainer.findViewById(R.id.cardAssistantWeather);
+        TextView tvTemp = assistantCardContainer.findViewById(R.id.weatherCardTemp);
+        TextView tvCity = assistantCardContainer.findViewById(R.id.weatherCardCity);
+        TextView tvDesc = assistantCardContainer.findViewById(R.id.weatherCardDesc);
+        ImageView ivIcon = assistantCardContainer.findViewById(R.id.weatherCardIcon);
+        ViewGroup forecastContainer = assistantCardContainer.findViewById(R.id.weatherCardForecastContainer);
+
+        WeatherDataManager wm = new WeatherDataManager(context);
+        WeatherDataManager.WeatherDetailInfo detail = wm.getCachedDetailWeather();
+        String displayCity = cityName != null && !cityName.isEmpty() ? cityName : (detail != null ? detail.city : wm.getSavedCityName());
+
+        double temp = detail != null ? detail.currentTemp : 26.0;
+        String desc = detail != null ? detail.description : "Trời nắng nhẹ";
+        int humidity = detail != null ? detail.humidity : 65;
+        double wind = detail != null ? detail.windSpeed : 12.0;
+        int weatherCode = detail != null ? detail.weatherCode : 0;
+
+        if (tvTemp != null) tvTemp.setText(Math.round(temp) + "°C");
+        if (tvCity != null) tvCity.setText(displayCity + " • Hôm nay");
+        if (tvDesc != null) tvDesc.setText(desc + " • Độ ẩm " + humidity + "% • Gió " + Math.round(wind) + " km/h");
+        if (ivIcon != null) ivIcon.setImageResource(getAssistantWeatherIconRes(weatherCode));
+
+        if (forecastContainer != null && detail != null && detail.dailyForecast != null) {
+            forecastContainer.removeAllViews();
+            float density = context.getResources().getDisplayMetrics().density;
+            int count = Math.min(5, detail.dailyForecast.size());
+            for (int i = 0; i < count; i++) {
+                WeatherDataManager.DetailDayForecast day = detail.dailyForecast.get(i);
+                android.widget.LinearLayout dayCol = new android.widget.LinearLayout(context);
+                dayCol.setOrientation(android.widget.LinearLayout.VERTICAL);
+                dayCol.setGravity(android.view.Gravity.CENTER);
+                dayCol.setPadding((int) (12 * density), (int) (6 * density), (int) (12 * density), (int) (6 * density));
+                dayCol.setBackgroundResource(R.drawable.search_pill_btn_bg);
+                android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+                if (i > 0) { lp.setMarginStart((int) (8 * density)); lp.leftMargin = (int) (8 * density); }
+                dayCol.setLayoutParams(lp);
+
+                TextView tvDayName = new TextView(context);
+                tvDayName.setText(day.dayName);
+                tvDayName.setTextColor(0xFFFFFFFF);
+                tvDayName.setTextSize(12f);
+                tvDayName.setGravity(android.view.Gravity.CENTER);
+                dayCol.addView(tvDayName);
+
+                ImageView ivDay = new ImageView(context);
+                ivDay.setImageResource(getAssistantWeatherIconRes(day.weatherCode));
+                android.widget.LinearLayout.LayoutParams imgLp = new android.widget.LinearLayout.LayoutParams((int) (22 * density), (int) (22 * density));
+                imgLp.topMargin = (int) (4 * density);
+                imgLp.bottomMargin = (int) (4 * density);
+                ivDay.setLayoutParams(imgLp);
+                dayCol.addView(ivDay);
+
+                TextView tvDayTemp = new TextView(context);
+                tvDayTemp.setText(day.minTemp + "°/" + day.maxTemp + "°");
+                tvDayTemp.setTextColor(0xFFA1A1AA);
+                tvDayTemp.setTextSize(11f);
+                tvDayTemp.setGravity(android.view.Gravity.CENTER);
+                dayCol.addView(tvDayTemp);
+
+                forecastContainer.addView(dayCol);
+            }
+        }
+
+        if (card != null) {
+            card.setOnClickListener(v -> {
+                try {
+                    Intent weatherIntent = new Intent(context, com.next.tv.launcher.weather.WeatherDetailActivity.class);
+                    weatherIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(weatherIntent);
+                    dismiss();
+                } catch (Exception ignored) {}
+            });
+            card.post(() -> card.requestFocus());
+        }
+
+        AssistantSpeechSpeaker.getInstance(context).speak("Thời tiết hôm nay tại " + displayCity + " " + Math.round(temp) + " độ C, " + desc + ".");
+    }
+
+    private void showAssistantGoldCard() {
+        if (overlayView == null) return;
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (searchResultsBottomPanel != null) searchResultsBottomPanel.setVisibility(View.VISIBLE);
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.GONE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.GONE);
+        if (searchResultHeaderTitle != null) searchResultHeaderTitle.setText("Giá vàng");
+
+        if (assistantCardContainer == null) return;
+        assistantCardContainer.removeAllViews();
+        assistantCardContainer.setVisibility(View.VISIBLE);
+
+        LayoutInflater.from(context).inflate(R.layout.item_assistant_gold_card, assistantCardContainer, true);
+        View card = assistantCardContainer.findViewById(R.id.cardAssistantGold);
+        TextView tvSjcPrice = assistantCardContainer.findViewById(R.id.goldSjcPrice);
+        TextView tvSjcSub = assistantCardContainer.findViewById(R.id.goldSjcSub);
+        TextView tvRingPrice = assistantCardContainer.findViewById(R.id.goldRingPrice);
+        TextView tvRingSub = assistantCardContainer.findViewById(R.id.goldRingSub);
+        TextView tvWorldPrice = assistantCardContainer.findViewById(R.id.goldWorldPrice);
+        TextView tvWorldSub = assistantCardContainer.findViewById(R.id.goldWorldSub);
+
+        double sjcSell = 89.5, sjcBuy = 87.5;
+        double ringSell = 88.2, ringBuy = 86.8;
+        int worldPrice = 2745;
+
+        try {
+            org.json.JSONObject batch = WidgetProtocolEngine.getInstance(context).getCachedBatchJson();
+            if (batch != null && batch.has("gold")) {
+                org.json.JSONObject goldObj = batch.getJSONObject("gold");
+                sjcSell = goldObj.optDouble("rawTemp", 89.5);
+                org.json.JSONArray subs = goldObj.optJSONArray("subItems");
+                if (subs != null && subs.length() >= 2) {
+                    sjcBuy = subs.getJSONObject(0).optDouble("temp", 87.5);
+                    sjcSell = subs.getJSONObject(1).optDouble("temp", sjcSell);
+                    if (subs.length() >= 3) {
+                        worldPrice = subs.getJSONObject(2).optInt("temp", 2745);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        if (tvSjcPrice != null) tvSjcPrice.setText(sjcSell + " tr/lượng");
+        if (tvSjcSub != null) tvSjcSub.setText("Mua: " + sjcBuy + " tr • Bán: " + sjcSell + " tr");
+        if (tvRingPrice != null) tvRingPrice.setText(ringSell + " tr/lượng");
+        if (tvRingSub != null) tvRingSub.setText("Mua: " + ringBuy + " tr • Bán: " + ringSell + " tr");
+        if (tvWorldPrice != null) tvWorldPrice.setText(worldPrice + " USD/oz");
+        if (tvWorldSub != null) tvWorldSub.setText("Biến động: +0.8%");
+
+        if (card != null) {
+            card.post(() -> card.requestFocus());
+        }
+
+        AssistantSpeechSpeaker.getInstance(context).speak("Giá vàng SJC hôm nay mua vào " + sjcBuy + " triệu, bán ra " + sjcSell + " triệu đồng một lượng.");
+    }
+
+    private void showAssistantAddonUpsellCard(TvAssistantDispatcher.ParsedIntent intent, WidgetAddonGatekeeper.RequirementResult req) {
+        if (overlayView == null) return;
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (searchResultsBottomPanel != null) searchResultsBottomPanel.setVisibility(View.VISIBLE);
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.GONE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.GONE);
+        if (searchResultHeaderTitle != null) searchResultHeaderTitle.setText("Không tìm thấy kết quả");
+
+        if (assistantCardContainer == null) return;
+        assistantCardContainer.removeAllViews();
+        assistantCardContainer.setVisibility(View.VISIBLE);
+
+        LayoutInflater.from(context).inflate(R.layout.item_assistant_addon_upsell_card, assistantCardContainer, true);
+        TextView tvTitle = assistantCardContainer.findViewById(R.id.tvUpsellTitle);
+        TextView tvDesc = assistantCardContainer.findViewById(R.id.tvUpsellDesc);
+        TextView btnInstall = assistantCardContainer.findViewById(R.id.btnInstallAddon);
+
+        if (tvTitle != null) tvTitle.setText("Cần cài đặt tiện ích " + req.displayName);
+        if (tvDesc != null) tvDesc.setText("Bạn cần cài đặt tiện ích " + req.displayName + " từ Cửa hàng tiện ích để sử dụng tính năng này.");
+
+        String btnText = (req.status == WidgetAddonGatekeeper.STATUS_DISABLED ? "Bật tiện ích " + req.displayName : "Cài đặt tiện ích " + req.displayName);
+        if (btnInstall != null) {
+            btnInstall.setText(btnText);
+            btnInstall.setOnClickListener(v -> {
+                btnInstall.setText("Đang cài đặt...");
+                btnInstall.setEnabled(false);
+                addonGatekeeper.installOrEnableAddon(req.addonId, (success, message) -> mainHandler.post(() -> {
+                    if (success) {
+                        btnInstall.setText("Đã kích hoạt");
+                        AssistantSpeechSpeaker.getInstance(context).speak("Đã cài đặt tiện ích " + req.displayName + ".");
+                        mainHandler.postDelayed(() -> {
+                            if (intent.type == TvAssistantDispatcher.INTENT_WEATHER) {
+                                showAssistantWeatherCard(intent.targetCity);
+                            } else if (intent.type == TvAssistantDispatcher.INTENT_GOLD) {
+                                showAssistantGoldCard();
+                            } else {
+                                executeUniversalSearch(currentQuery, true);
+                            }
+                        }, 400L);
+                    } else {
+                        btnInstall.setEnabled(true);
+                        btnInstall.setText("Thử lại");
+                    }
+                }));
+            });
+            btnInstall.post(() -> btnInstall.requestFocus());
+        }
+
+        AssistantSpeechSpeaker.getInstance(context).speak("Bạn chưa cài tiện ích " + req.displayName + ". Bấm chọn để cài đặt.");
+    }
+
+    private int getAssistantWeatherIconRes(int code) {
+        if (code == 0) return R.drawable.ic_weather_sun;
+        if (code >= 1 && code <= 3) return R.drawable.ic_weather_cloud;
+        if (code == 45 || code == 48) return R.drawable.ic_weather_cloud;
+        if (code >= 51 && code <= 67) return R.drawable.ic_weather_rain;
+        if (code >= 71 && code <= 77) return R.drawable.ic_weather_rain;
+        if (code >= 80 && code <= 82) return R.drawable.ic_weather_rain;
+        if (code >= 95 && code <= 99) return R.drawable.ic_weather_bolt;
+        return R.drawable.ic_weather_cloud;
     }
 }

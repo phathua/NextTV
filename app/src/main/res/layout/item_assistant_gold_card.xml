@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cardAssistantGold"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/search_pill_btn_bg"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clickable="true"
+    android:defaultFocusHighlightEnabled="false">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/goldCardTitle"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Giá vàng trong nước • SJC &amp; 9999"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:fontFamily="@string/font_medium" />
+
+        <TextView
+            android:id="@+id/goldCardTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bảo Tín Minh Châu • Hôm nay"
+            android:textColor="#A1A1AA"
+            android:textSize="12sp"
+            android:fontFamily="@string/font_regular" />
+    </LinearLayout>
+
+    <!-- Table Rows -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Column 1: SJC -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Vàng miếng SJC"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldSjcPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="89.5 tr/lượng"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldSjcSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mua: 87.5 tr • Bán: 89.5 tr"
+                android:textColor="#71717A"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Column 2: Nhẫn 9999 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nhẫn tròn trơn 999.9"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldRingPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="88.2 tr/lượng"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldRingSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mua: 86.8 tr • Bán: 88.2 tr"
+                android:textColor="#71717A"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Column 3: World Gold -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Giá vàng thế giới"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldWorldPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="2,745 USD/oz"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/goldWorldSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Biến động: +0.8%"
+                android:textColor="#22C55E"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

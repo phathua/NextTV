@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cardAssistantWeather"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/search_pill_btn_bg"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clickable="true"
+    android:defaultFocusHighlightEnabled="false">
+
+    <!-- Top Row: Hero Temp, Condition & Icon -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Temp + Location Column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom">
+
+                <TextView
+                    android:id="@+id/weatherCardTemp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="26°C"
+                    android:textColor="#FFFFFF"
+                    android:textSize="40sp"
+                    android:fontFamily="@string/font_medium"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/weatherCardCity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="Đà Nẵng • Hôm nay"
+                    android:textColor="#F4F4F5"
+                    android:textSize="16sp"
+                    android:fontFamily="@string/font_medium" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/weatherCardDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Trời nắng ráo • Độ ẩm 65% • Gió 12 km/h"
+                android:textColor="#A1A1AA"
+                android:textSize="13sp"
+                android:fontFamily="@string/font_regular" />
+        </LinearLayout>
+
+        <!-- Weather Icon -->
+        <ImageView
+            android:id="@+id/weatherCardIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_weather_sun"
+            android:contentDescription="@null" />
+    </LinearLayout>
+
+    <!-- Mini Forecast Row (5 days) -->
+    <LinearLayout
+        android:id="@+id/weatherCardForecastContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical" />
+
+</LinearLayout>

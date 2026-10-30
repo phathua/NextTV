@@ -236,6 +236,17 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Smart Assistant Dynamic Card Container (Weather, Gold, Addon Upsell) -->
+        <FrameLayout
+            android:id="@+id/assistantCardContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            android:clipChildren="false"
+            android:clipToPadding="false" />
+
         <!-- Horizontal Cards Row (Image 2 and Image 1 style) -->
         <com.next.tv.launcher.HorizontalSectionRecyclerView
             android:id="@+id/searchHorizontalRecycler"

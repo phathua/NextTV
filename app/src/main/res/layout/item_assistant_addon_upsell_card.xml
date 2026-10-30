@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cardAssistantUpsell"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/search_pill_btn_bg"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="18dp"
+    android:paddingBottom="18dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Addon Icon -->
+    <ImageView
+        android:id="@+id/imgUpsellIcon"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:src="@drawable/ic_widgets_duotone"
+        android:contentDescription="@null" />
+
+    <!-- Text Information -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvUpsellTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cần cài đặt tiện ích"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:fontFamily="@string/font_medium" />
+
+        <TextView
+            android:id="@+id/tvUpsellDesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="Bạn cần cài đặt tiện ích từ Cửa hàng tiện ích để sử dụng tính năng này."
+            android:textColor="#A1A1AA"
+            android:textSize="13sp"
+            android:fontFamily="@string/font_regular" />
+    </LinearLayout>
+
+    <!-- 1-Click Action Button -->
+    <TextView
+        android:id="@+id/btnInstallAddon"
+        android:layout_width="wrap_content"
+        android:layout_height="38dp"
+        android:gravity="center"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:text="Cài đặt tiện ích"
+        android:textColor="@color/search_pill_text_color"
+        android:textSize="13sp"
+        android:fontFamily="@string/font_medium"
+        android:background="@drawable/search_pill_btn_bg"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clickable="true"
+        android:defaultFocusHighlightEnabled="false" />
+
+</LinearLayout>

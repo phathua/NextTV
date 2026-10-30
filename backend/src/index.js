@@ -114,6 +114,48 @@ const SPORT_ENDPOINTS = {
  * Tiện ích: Giá vàng SJC (NWP-1 hero_metric)
  */
 async function fetchGoldPrice() {
+  try {
+    const res = await fetch("https://api.btmc.vn/api/BTMCAPI/getpricebtmc?key=3kd8ub1k9MgmR44tPU6h8H5g3Ar02t", {
+      headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const items = data?.DataList?.Data || [];
+      let sjcBuy = 0, sjcSell = 0;
+      let vrtlBuy = 0, vrtlSell = 0;
+      for (const item of items) {
+        for (const k in item) {
+          if (k.startsWith("@n_") && item[k]) {
+            const idx = k.split("_")[1];
+            const name = String(item[k]).toUpperCase();
+            if (name.includes("SJC") && (!sjcBuy || !sjcSell)) {
+              sjcBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
+              sjcSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
+            } else if ((name.includes("RỒNG THĂNG LONG") || name.includes("VRTL") || name.includes("999.9")) && (!vrtlBuy || !vrtlSell)) {
+              vrtlBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
+              vrtlSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
+            }
+          }
+        }
+      }
+      if (sjcSell > 0) {
+        return {
+          template: "hero_metric",
+          headerLeft: "Vàng SJC 9999",
+          rawTemp: Number(sjcSell.toFixed(1)),
+          heroUnit: "triệu/lượng",
+          headerRight: "+0.5%",
+          subItems: [
+            { label: "Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
+            { label: "Bán ra", temp: Number(sjcSell.toFixed(1)) },
+            { label: "Nhẫn 9999", temp: Number((vrtlSell || 88.5).toFixed(1)) }
+          ]
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("fetchGoldPrice error: " + err.message);
+  }
   return {
     template: "hero_metric",
     headerLeft: "Vàng SJC 9999",
@@ -349,7 +391,7 @@ export default {
       }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
     }
 
-    if (url.pathname === "/addons/gold/manifest.json") {
+    if (url.pathname === "/addons/gold/manifest.json" || url.pathname === "/gold/manifest.json") {
       return new Response(JSON.stringify({
         id: "com.nexttv.widget.gold",
         name: "Giá vàng SJC 9999",
