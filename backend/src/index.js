@@ -198,7 +198,7 @@ export default {
     // -------------------------------------------------------------
     // NWP-1 Widget Protocol Manifest Endpoints
     // -------------------------------------------------------------
-    if (url.pathname === "/manifest_index.json" || url.pathname === "/widgets/manifest.json") {
+    if (url.pathname === "/api/v1/addons/store" || url.pathname === "/manifest_index.json" || url.pathname === "/widgets/manifest.json") {
       const auth = await verifyApkKeystoreAndSignature(request, env, "manifest");
       if (!auth.ok) {
         return new Response(JSON.stringify({ error: auth.error }), {
@@ -213,6 +213,39 @@ export default {
         baseUrl: url.origin,
         batchEndpoint: "/api/v1/widgets/batch",
         widgets: [
+          {
+            id: "com.nexttv.widget.gold",
+            name: "Giá vàng SJC 9999",
+            version: "1.0.0",
+            author: "NextTV Labs",
+            description: "Giá vàng trong nước & thế giới liên tục cập nhật",
+            template: "hero_metric",
+            manifestUrl: "/addons/gold/manifest.json",
+            refreshIntervalSec: 1800,
+            defaultEnabled: false
+          },
+          {
+            id: "com.nexttv.widget.crypto",
+            name: "Tỷ giá Tiền số (Crypto)",
+            version: "1.0.0",
+            author: "NextTV Labs",
+            description: "Biến động Bitcoin, ETH, SOL theo thời gian thực",
+            template: "hero_metric",
+            manifestUrl: "/addons/crypto/manifest.json",
+            refreshIntervalSec: 300,
+            defaultEnabled: false
+          },
+          {
+            id: "com.nexttv.widget.vietnam_calendar",
+            name: "Lịch Âm Dương Việt Nam",
+            version: "1.0.0",
+            author: "NextTV Labs",
+            description: "Ngày âm, can chi, giờ hoàng đạo và tiết khí",
+            template: "hero_metric",
+            manifestUrl: "/addons/vietnam_calendar/manifest.json",
+            refreshIntervalSec: 21600,
+            defaultEnabled: false
+          },
           {
             id: "com.nexttv.widget.weather",
             name: "Thời tiết",
@@ -255,7 +288,10 @@ export default {
     if (url.pathname === "/weather/manifest.json" ||
         url.pathname === "/sports/manifest.json" ||
         url.pathname === "/news/manifest.json" ||
-        url.pathname === "/youtube/manifest.json") {
+        url.pathname === "/youtube/manifest.json" ||
+        url.pathname === "/addons/gold/manifest.json" ||
+        url.pathname === "/addons/crypto/manifest.json" ||
+        url.pathname === "/addons/vietnam_calendar/manifest.json") {
       const auth = await verifyApkKeystoreAndSignature(request, env, "manifest");
       if (!auth.ok) {
         return new Response(JSON.stringify({ error: auth.error }), {
@@ -310,6 +346,45 @@ export default {
         description: "Danh sách video thịnh hành trên YouTube Việt Nam",
         refreshIntervalSec: 21600,
         endpoint: `${url.origin}/api/v1/widgets/batch?ids=youtube`
+      }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
+    }
+
+    if (url.pathname === "/addons/gold/manifest.json") {
+      return new Response(JSON.stringify({
+        id: "com.nexttv.widget.gold",
+        name: "Giá vàng SJC 9999",
+        version: "1.0.0",
+        author: "NextTV Labs",
+        template: "hero_metric",
+        description: "Giá vàng trong nước & thế giới liên tục cập nhật",
+        refreshIntervalSec: 1800,
+        endpoint: `${url.origin}/api/v1/widgets/batch?ids=gold`
+      }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
+    }
+
+    if (url.pathname === "/addons/crypto/manifest.json") {
+      return new Response(JSON.stringify({
+        id: "com.nexttv.widget.crypto",
+        name: "Tỷ giá Tiền số (Crypto)",
+        version: "1.0.0",
+        author: "NextTV Labs",
+        template: "hero_metric",
+        description: "Biến động Bitcoin, ETH, SOL theo thời gian thực",
+        refreshIntervalSec: 300,
+        endpoint: `${url.origin}/api/v1/widgets/batch?ids=crypto`
+      }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
+    }
+
+    if (url.pathname === "/addons/vietnam_calendar/manifest.json") {
+      return new Response(JSON.stringify({
+        id: "com.nexttv.widget.vietnam_calendar",
+        name: "Lịch Âm Dương Việt Nam",
+        version: "1.0.0",
+        author: "NextTV Labs",
+        template: "hero_metric",
+        description: "Ngày âm, can chi, giờ hoàng đạo và tiết khí",
+        refreshIntervalSec: 21600,
+        endpoint: `${url.origin}/api/v1/widgets/batch?ids=vietnam_calendar`
       }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
     }
 
@@ -370,6 +445,30 @@ export default {
           `https://nexttv-edge.local/youtube/trending_v3`,
           21600, // 6 giờ
           () => fetchYouTubeTrending(),
+          ctx
+        );
+      }
+      if (requestedIds.includes("gold")) {
+        tasks.gold = getCachedOrFetch(
+          `https://nexttv-edge.local/gold/price`,
+          1800,
+          () => fetchGoldPrice(),
+          ctx
+        );
+      }
+      if (requestedIds.includes("crypto")) {
+        tasks.crypto = getCachedOrFetch(
+          `https://nexttv-edge.local/crypto/price`,
+          300,
+          () => fetchCryptoPrice(),
+          ctx
+        );
+      }
+      if (requestedIds.includes("vietnam_calendar")) {
+        tasks.vietnam_calendar = getCachedOrFetch(
+          `https://nexttv-edge.local/calendar/vietnam`,
+          21600,
+          () => fetchVietnamCalendar(),
           ctx
         );
       }

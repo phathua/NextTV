@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Manages installed widget addons, local cache persistence, and official store catalog.
+ * Serves as the Single Source of Truth for all widgets and addons across NextTV Launcher.
  */
 public final class WidgetAddonManager {
     private static final String TAG = "NextTV.WidgetAddon";
@@ -28,6 +29,16 @@ public final class WidgetAddonManager {
     private static final String KEY_INSTALLED_ADDONS = "installed_addons_json";
     private static final String KEY_ADDON_ORDER = "installed_addon_order";
     private static final String KEY_CATALOG_CACHE = "cached_catalog_json";
+
+    public static final String ID_WEATHER = "com.nexttv.widget.weather";
+    public static final String ID_SPORTS = "com.nexttv.widget.sports";
+    public static final String ID_NEWS = "com.nexttv.widget.news";
+    public static final String ID_YOUTUBE = "com.nexttv.widget.youtube";
+    public static final String ID_USAGE = "com.nexttv.widget.usage";
+    public static final String ID_MEDIA = "com.nexttv.widget.media";
+    public static final String ID_GOLD = "com.nexttv.widget.gold";
+    public static final String ID_CRYPTO = "com.nexttv.widget.crypto";
+    public static final String ID_VIETNAM_CALENDAR = "com.nexttv.widget.vietnam_calendar";
 
     public interface CatalogCallback {
         void onCatalogLoaded(List<WidgetAddon> catalog, boolean isSuccess);
@@ -100,12 +111,12 @@ public final class WidgetAddonManager {
         if (prefs.contains(KEY_INSTALLED_ADDONS)) return;
 
         List<WidgetAddon> defaults = new ArrayList<>();
-        defaults.add(new WidgetAddon("com.nexttv.widget.weather", "Thời tiết", "1.0.0", "NextTV Labs", "Dự báo thời tiết địa phương", "", "", "hero_metric", 10800, true, true, true));
-        defaults.add(new WidgetAddon("com.nexttv.widget.sports", "Tỉ số thể thao", "1.0.0", "NextTV Labs", "Tỉ số trực tiếp giải đấu hàng đầu", "", "", "scoreboard", 60, true, true, true));
-        defaults.add(new WidgetAddon("com.nexttv.widget.news", "Tin tức nóng", "1.0.0", "NextTV Labs", "Điểm tin nóng đa nguồn liên tục", "", "", "news_carousel", 3600, true, true, true));
-        defaults.add(new WidgetAddon("com.nexttv.widget.youtube", "Video thịnh hành", "1.0.0", "NextTV Labs", "Video nổi bật trên YouTube", "", "", "media_banner", 21600, true, true, true));
-        defaults.add(new WidgetAddon("com.nexttv.widget.usage", "Thời gian xem TV", "1.0.0", "NextTV Labs", "Thống kê thời lượng xem TV", "", "", "hero_metric", 3600, true, true, true));
-        defaults.add(new WidgetAddon("com.nexttv.widget.media", "Đang phát nhạc", "1.0.0", "NextTV Labs", "Trình phát nhạc đang hoạt động", "", "", "media_session", 0, true, true, false));
+        defaults.add(new WidgetAddon(ID_WEATHER, "Thời tiết", "1.0.0", "NextTV Labs", "Dự báo thời tiết địa phương", "", "", "hero_metric", 10800, true, true, true));
+        defaults.add(new WidgetAddon(ID_SPORTS, "Tỉ số thể thao", "1.0.0", "NextTV Labs", "Tỉ số trực tiếp giải đấu hàng đầu", "", "", "scoreboard", 60, true, true, true));
+        defaults.add(new WidgetAddon(ID_NEWS, "Tin tức nóng", "1.0.0", "NextTV Labs", "Điểm tin nóng đa nguồn liên tục", "", "", "news_carousel", 3600, true, true, true));
+        defaults.add(new WidgetAddon(ID_YOUTUBE, "Video thịnh hành", "1.0.0", "NextTV Labs", "Video nổi bật trên YouTube", "", "", "media_banner", 21600, true, true, true));
+        defaults.add(new WidgetAddon(ID_USAGE, "Thời gian xem TV", "1.0.0", "NextTV Labs", "Thống kê thời lượng xem TV", "", "", "hero_metric", 3600, true, true, true));
+        defaults.add(new WidgetAddon(ID_MEDIA, "Đang phát nhạc", "1.0.0", "NextTV Labs", "Trình phát nhạc đang hoạt động", "", "", "media_session", 0, true, true, false));
 
         saveInstalledAddons(defaults);
 
@@ -155,6 +166,50 @@ public final class WidgetAddonManager {
     }
 
     /**
+     * Maps an addon ID string to the corresponding integer widget type for WidgetSectionAdapter.
+     */
+    public static int getWidgetTypeForId(String id) {
+        if (id == null) return WidgetSectionAdapter.TYPE_WEATHER;
+        switch (id) {
+            case ID_WEATHER: return WidgetSectionAdapter.TYPE_WEATHER;
+            case ID_NEWS: return WidgetSectionAdapter.TYPE_NEWS;
+            case ID_USAGE: return WidgetSectionAdapter.TYPE_USAGE;
+            case ID_MEDIA: return WidgetSectionAdapter.TYPE_MEDIA;
+            case ID_YOUTUBE: return WidgetSectionAdapter.TYPE_YOUTUBE;
+            case ID_SPORTS: return WidgetSectionAdapter.TYPE_FOOTBALL;
+            case ID_GOLD: return WidgetSectionAdapter.TYPE_GOLD;
+            case ID_CRYPTO: return WidgetSectionAdapter.TYPE_CRYPTO;
+            case ID_VIETNAM_CALENDAR: return WidgetSectionAdapter.TYPE_VIETNAM_CALENDAR;
+            default:
+                return 100 + (Math.abs(id.hashCode()) % 800);
+        }
+    }
+
+    /**
+     * Maps an integer widget type back to an addon ID string.
+     */
+    public synchronized String getIdForWidgetType(int type) {
+        switch (type) {
+            case WidgetSectionAdapter.TYPE_WEATHER: return ID_WEATHER;
+            case WidgetSectionAdapter.TYPE_NEWS: return ID_NEWS;
+            case WidgetSectionAdapter.TYPE_USAGE: return ID_USAGE;
+            case WidgetSectionAdapter.TYPE_MEDIA: return ID_MEDIA;
+            case WidgetSectionAdapter.TYPE_YOUTUBE: return ID_YOUTUBE;
+            case WidgetSectionAdapter.TYPE_FOOTBALL: return ID_SPORTS;
+            case WidgetSectionAdapter.TYPE_GOLD: return ID_GOLD;
+            case WidgetSectionAdapter.TYPE_CRYPTO: return ID_CRYPTO;
+            case WidgetSectionAdapter.TYPE_VIETNAM_CALENDAR: return ID_VIETNAM_CALENDAR;
+            default:
+                for (WidgetAddon a : getInstalledAddons()) {
+                    if (getWidgetTypeForId(a.getId()) == type) {
+                        return a.getId();
+                    }
+                }
+                return null;
+        }
+    }
+
+    /**
      * Returns enabled addon IDs for dynamic batch feed.
      */
     public synchronized List<String> getActiveEnabledAddonIds() {
@@ -163,13 +218,13 @@ public final class WidgetAddonManager {
             if (addon.isEnabled()) {
                 String id = addon.getId();
                 // Map to simple shorthand if built-in
-                if ("com.nexttv.widget.weather".equals(id)) list.add("weather");
-                else if ("com.nexttv.widget.sports".equals(id)) list.add("sports");
-                else if ("com.nexttv.widget.news".equals(id)) list.add("news");
-                else if ("com.nexttv.widget.youtube".equals(id)) list.add("youtube");
-                else if ("com.nexttv.widget.gold".equals(id)) list.add("gold");
-                else if ("com.nexttv.widget.crypto".equals(id)) list.add("crypto");
-                else if ("com.nexttv.widget.vietnam_calendar".equals(id)) list.add("vietnam_calendar");
+                if (ID_WEATHER.equals(id)) list.add("weather");
+                else if (ID_SPORTS.equals(id)) list.add("sports");
+                else if (ID_NEWS.equals(id)) list.add("news");
+                else if (ID_YOUTUBE.equals(id)) list.add("youtube");
+                else if (ID_GOLD.equals(id)) list.add("gold");
+                else if (ID_CRYPTO.equals(id)) list.add("crypto");
+                else if (ID_VIETNAM_CALENDAR.equals(id)) list.add("vietnam_calendar");
                 else list.add(id);
             }
         }
@@ -188,6 +243,15 @@ public final class WidgetAddonManager {
         for (WidgetAddon a : getInstalledAddons()) {
             if (a.getId().equalsIgnoreCase(addonId)) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized boolean isAddonEnabled(String addonId) {
+        for (WidgetAddon a : getInstalledAddons()) {
+            if (a.getId().equalsIgnoreCase(addonId)) {
+                return a.isEnabled();
             }
         }
         return false;
@@ -213,7 +277,6 @@ public final class WidgetAddonManager {
             WidgetAddon a = it.next();
             if (a.getId().equalsIgnoreCase(addonId)) {
                 if (a.isBuiltIn()) {
-                    // Built-in widgets can only be disabled, not removed
                     a.setEnabled(false);
                 } else {
                     it.remove();
@@ -249,49 +312,66 @@ public final class WidgetAddonManager {
     }
 
     /**
-     * Fetches official store catalog from backend /api/v1/addons/store.
+     * Builds default store catalog when offline or before backend is synced.
+     */
+    public List<WidgetAddon> buildDefaultStoreCatalog() {
+        List<WidgetAddon> catalog = new ArrayList<>();
+        catalog.add(new WidgetAddon(ID_GOLD, "Giá vàng SJC 9999", "1.0.0", "NextTV Labs", "Giá vàng trong nước & thế giới liên tục cập nhật", "/addons/gold/manifest.json", "", "hero_metric", 1800, false, isInstalled(ID_GOLD), isAddonEnabled(ID_GOLD)));
+        catalog.add(new WidgetAddon(ID_CRYPTO, "Tỷ giá Tiền số (Crypto)", "1.0.0", "NextTV Labs", "Biến động Bitcoin, ETH, SOL theo thời gian thực", "/addons/crypto/manifest.json", "", "hero_metric", 300, false, isInstalled(ID_CRYPTO), isAddonEnabled(ID_CRYPTO)));
+        catalog.add(new WidgetAddon(ID_VIETNAM_CALENDAR, "Lịch Âm Dương Việt Nam", "1.0.0", "NextTV Labs", "Ngày âm, can chi, giờ hoàng đạo và tiết khí", "/addons/vietnam_calendar/manifest.json", "", "hero_metric", 21600, false, isInstalled(ID_VIETNAM_CALENDAR), isAddonEnabled(ID_VIETNAM_CALENDAR)));
+        catalog.add(new WidgetAddon(ID_WEATHER, "Thời tiết", "1.0.0", "NextTV Labs", "Dự báo thời tiết địa phương tức thì", "", "", "hero_metric", 10800, true, true, isAddonEnabled(ID_WEATHER)));
+        catalog.add(new WidgetAddon(ID_SPORTS, "Tỉ số thể thao", "1.0.0", "NextTV Labs", "Tỉ số trực tiếp các giải đấu hàng đầu", "", "", "scoreboard", 60, true, true, isAddonEnabled(ID_SPORTS)));
+        catalog.add(new WidgetAddon(ID_NEWS, "Tin tức nóng", "1.0.0", "NextTV Labs", "Điểm tin nóng đa nguồn liên tục", "", "", "news_carousel", 3600, true, true, isAddonEnabled(ID_NEWS)));
+        catalog.add(new WidgetAddon(ID_YOUTUBE, "Video thịnh hành", "1.0.0", "NextTV Labs", "Danh sách video nổi bật trên YouTube", "", "", "media_banner", 21600, true, true, isAddonEnabled(ID_YOUTUBE)));
+        return catalog;
+    }
+
+    private List<WidgetAddon> parseCatalogJson(String rawJson) {
+        List<WidgetAddon> catalog = new ArrayList<>();
+        if (rawJson != null && !rawJson.isEmpty()) {
+            try {
+                JSONObject root = new JSONObject(rawJson);
+                JSONArray arr = root.optJSONArray("widgets");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject obj = arr.optJSONObject(i);
+                        if (obj != null) {
+                            WidgetAddon addon = WidgetAddon.fromJson(obj);
+                            if (addon != null && !addon.getId().isEmpty()) {
+                                addon.setInstalled(isInstalled(addon.getId()));
+                                catalog.add(addon);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed parsing store catalog: " + e.getMessage());
+            }
+        }
+        return catalog;
+    }
+
+    /**
+     * Fetches official store catalog instantly (0ms latency) with background remote refresh.
      */
     public void fetchStoreCatalog(CatalogCallback callback) {
+        // 1. Deliver local default or cached catalog immediately
+        List<WidgetAddon> instantCatalog = parseCatalogJson(prefs.getString(KEY_CATALOG_CACHE, null));
+        if (instantCatalog.isEmpty()) {
+            instantCatalog = buildDefaultStoreCatalog();
+        }
+        if (callback != null) {
+            callback.onCatalogLoaded(instantCatalog, true);
+        }
+
+        // 2. Fetch remote update in background
         executor.execute(() -> {
             String baseUrl = "https://nexttv.vixlab.workers.dev";
             String url = baseUrl + "/api/v1/addons/store";
-            String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(url, 0);
-
-            if (rawJson == null || rawJson.isEmpty()) {
-                // Fallback to cache
-                rawJson = prefs.getString(KEY_CATALOG_CACHE, null);
-            } else {
+            String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(url, 0, "manifest");
+            if (rawJson != null && !rawJson.isEmpty()) {
                 prefs.edit().putString(KEY_CATALOG_CACHE, rawJson).apply();
             }
-
-            List<WidgetAddon> catalog = new ArrayList<>();
-            boolean success = false;
-            if (rawJson != null && !rawJson.isEmpty()) {
-                try {
-                    JSONObject root = new JSONObject(rawJson);
-                    JSONArray arr = root.optJSONArray("widgets");
-                    if (arr != null) {
-                        for (int i = 0; i < arr.length(); i++) {
-                            JSONObject obj = arr.optJSONObject(i);
-                            if (obj != null) {
-                                WidgetAddon addon = WidgetAddon.fromJson(obj);
-                                if (addon != null && !addon.getId().isEmpty()) {
-                                    addon.setInstalled(isInstalled(addon.getId()));
-                                    catalog.add(addon);
-                                }
-                            }
-                        }
-                        success = true;
-                    }
-                } catch (Exception e) {
-                    Log.w(TAG, "Failed parsing store catalog: " + e.getMessage());
-                }
-            }
-
-            final boolean finalSuccess = success;
-            mainHandler.post(() -> {
-                if (callback != null) callback.onCatalogLoaded(catalog, finalSuccess);
-            });
         });
     }
 
@@ -319,7 +399,7 @@ public final class WidgetAddonManager {
                 }
             }
 
-            // Add new
+            // Add new addon
             addon.setInstalled(true);
             addon.setEnabled(true);
             list.add(addon);
@@ -344,10 +424,11 @@ public final class WidgetAddonManager {
 
         final String cleanUrl = manifestUrl.trim();
         executor.execute(() -> {
-            String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(cleanUrl, 0);
+            // External custom URLs do not send internal APK HMAC signature
+            String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(cleanUrl, 0, null);
             if (rawJson == null || rawJson.isEmpty()) {
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onInstallResult(false, "Không thể tải manifest từ URL", null);
+                    if (callback != null) callback.onInstallResult(false, "Không thể tải cấu hình tiện ích từ liên kết", null);
                 });
                 return;
             }
@@ -358,7 +439,7 @@ public final class WidgetAddonManager {
                 String name = obj.optString("name", "");
                 if (id.isEmpty() || name.isEmpty()) {
                     mainHandler.post(() -> {
-                        if (callback != null) callback.onInstallResult(false, "Tệp manifest thiếu thông tin id hoặc name", null);
+                        if (callback != null) callback.onInstallResult(false, "Tệp cấu hình thiếu mã định danh hoặc tên tiện ích", null);
                     });
                     return;
                 }
@@ -366,7 +447,7 @@ public final class WidgetAddonManager {
                 WidgetAddon addon = WidgetAddon.fromJson(obj);
                 if (addon == null) {
                     mainHandler.post(() -> {
-                        if (callback != null) callback.onInstallResult(false, "Cấu trúc manifest không hợp lệ", null);
+                        if (callback != null) callback.onInstallResult(false, "Cấu trúc tệp cấu hình không hợp lệ", null);
                     });
                     return;
                 }
@@ -394,7 +475,7 @@ public final class WidgetAddonManager {
 
             } catch (Exception e) {
                 mainHandler.post(() -> {
-                    if (callback != null) callback.onInstallResult(false, "Lỗi phân tích cú pháp manifest: " + e.getMessage(), null);
+                    if (callback != null) callback.onInstallResult(false, "Lỗi phân tích cú pháp cấu hình: " + e.getMessage(), null);
                 });
             }
         });

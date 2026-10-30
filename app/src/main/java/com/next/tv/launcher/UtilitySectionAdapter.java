@@ -25,7 +25,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.next.tv.launcher.clean.BackgroundAppCleaner;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
-import com.next.tv.launcher.widget.WidgetManagerDialog;
 
 import java.util.Locale;
 
@@ -421,8 +420,8 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                 () -> {
                     if (widgetManagerListener != null) {
                         widgetManagerListener.onWidgetManagerRequested();
-                    } else {
-                        new WidgetManagerDialog(context, null).show();
+                    } else if (context instanceof MainActivity) {
+                        ((MainActivity) context).openAdvancedSettingsForWidgets();
                     }
                 },
                 () -> {

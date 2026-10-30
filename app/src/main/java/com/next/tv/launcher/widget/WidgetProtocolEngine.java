@@ -173,6 +173,13 @@ public final class WidgetProtocolEngine {
      * Safe HTTP GET with SSRF filtering, redirect validation, and 256 KB response cap.
      */
     public String safeHttpGet(String urlStr, int hopCount) {
+        return safeHttpGet(urlStr, hopCount, "widgets_batch");
+    }
+
+    /**
+     * Safe HTTP GET with SSRF filtering, redirect validation, configurable HMAC signing, and 256 KB response cap.
+     */
+    public String safeHttpGet(String urlStr, int hopCount, String signAction) {
         if (hopCount > MAX_REDIRECT_HOPS) {
             Log.w(TAG, "Exceeded maximum redirect hops: " + urlStr);
             return null;
@@ -204,14 +211,16 @@ public final class WidgetProtocolEngine {
             conn.setRequestProperty("User-Agent", "NextTV-Launcher/1.0");
             conn.setRequestProperty("Accept", "application/json");
 
-            // Attach Release Keystore & HMAC-SHA256 signature headers
-            long now = System.currentTimeMillis();
-            NativeSecurityBridge.RequestAuthHeaders auth =
-                    NativeSecurityBridge.signRequest(context, "widgets_batch", now);
-            if (auth != null) {
-                conn.setRequestProperty("X-Client-Timestamp", auth.timestamp);
-                conn.setRequestProperty("X-Apk-Signature", auth.apkSignature);
-                conn.setRequestProperty("X-Client-Sign", auth.signature);
+            // Attach Release Keystore & HMAC-SHA256 signature headers if signAction is provided
+            if (signAction != null && !signAction.isEmpty()) {
+                long now = System.currentTimeMillis();
+                NativeSecurityBridge.RequestAuthHeaders auth =
+                        NativeSecurityBridge.signRequest(context, signAction, now);
+                if (auth != null) {
+                    conn.setRequestProperty("X-Client-Timestamp", auth.timestamp);
+                    conn.setRequestProperty("X-Apk-Signature", auth.apkSignature);
+                    conn.setRequestProperty("X-Client-Sign", auth.signature);
+                }
             }
 
             int responseCode = conn.getResponseCode();
@@ -226,7 +235,7 @@ public final class WidgetProtocolEngine {
                     if (location.startsWith("/")) {
                         location = url.getProtocol() + "://" + url.getHost() + location;
                     }
-                    return safeHttpGet(location, hopCount + 1);
+                    return safeHttpGet(location, hopCount + 1, signAction);
                 }
                 return null;
             }

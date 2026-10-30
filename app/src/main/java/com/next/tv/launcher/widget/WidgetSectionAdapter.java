@@ -89,6 +89,7 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
     private org.json.JSONObject goldData;
     private org.json.JSONObject cryptoData;
     private org.json.JSONObject calendarData;
+    private final java.util.Map<Integer, org.json.JSONObject> customAddonsData = new java.util.concurrent.ConcurrentHashMap<>();
     private int originalMovePos = -1;
     private List<Integer> originalOrderBackup = null;
     private android.animation.ObjectAnimator pulseAnimator = null;
@@ -130,6 +131,7 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
     public void rebuildActiveTypes() {
         boolean mediaPlaying = (playbackInfo != null && playbackInfo.isPlaying);
         this.activeTypes = configManager.getActiveWidgetTypes(mediaPlaying);
+        android.util.Log.i("TvHome.Widget", "rebuildActiveTypes: count=" + activeTypes.size() + ", types=" + activeTypes);
         notifyDataSetChanged();
         if (listChangedListener != null) {
             listChangedListener.onWidgetListChanged(activeTypes.size());
@@ -288,6 +290,48 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
                     }
                 }
                 setYouTubeData(videos);
+            }
+        }
+
+        // 5. Gold (hero_metric)
+        org.json.JSONObject gObj = widgetsObj.optJSONObject("gold");
+        if (gObj != null) {
+            this.goldData = gObj;
+            int idx = activeTypes.indexOf(TYPE_GOLD);
+            if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
+        }
+
+        // 6. Crypto (hero_metric)
+        org.json.JSONObject cObj = widgetsObj.optJSONObject("crypto");
+        if (cObj != null) {
+            this.cryptoData = cObj;
+            int idx = activeTypes.indexOf(TYPE_CRYPTO);
+            if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
+        }
+
+        // 7. Vietnam Calendar (hero_metric)
+        org.json.JSONObject calObj = widgetsObj.optJSONObject("vietnam_calendar");
+        if (calObj != null) {
+            this.calendarData = calObj;
+            int idx = activeTypes.indexOf(TYPE_VIETNAM_CALENDAR);
+            if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
+        }
+
+        // 8. Custom dynamic external addons
+        java.util.Iterator<String> keys = widgetsObj.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if ("weather".equals(key) || "sports".equals(key) || "news".equals(key)
+                    || "youtube".equals(key) || "gold".equals(key) || "crypto".equals(key)
+                    || "vietnam_calendar".equals(key)) {
+                continue;
+            }
+            org.json.JSONObject customObj = widgetsObj.optJSONObject(key);
+            if (customObj != null) {
+                int dynType = WidgetAddonManager.getWidgetTypeForId(key);
+                customAddonsData.put(dynType, customObj);
+                int idx = activeTypes.indexOf(dynType);
+                if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
             }
         }
     }
@@ -574,6 +618,13 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
                 else if (type == TYPE_USAGE) configManager.setUsageEnabled(false);
                 else if (type == TYPE_MEDIA) configManager.setMediaEnabled(false);
                 else if (type == TYPE_FOOTBALL) configManager.setFootballEnabled(false);
+                else if (type == TYPE_GOLD) configManager.setGoldEnabled(false);
+                else if (type == TYPE_CRYPTO) configManager.setCryptoEnabled(false);
+                else if (type == TYPE_VIETNAM_CALENDAR) configManager.setCalendarEnabled(false);
+                else {
+                    String addonId = WidgetAddonManager.getInstance(context).getIdForWidgetType(type);
+                    if (addonId != null) WidgetAddonManager.getInstance(context).toggleAddon(addonId, false);
+                }
 
                 rebuildActiveTypes();
 
@@ -597,12 +648,10 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
             });
         }
 
-        options.add("Quản lý tiện ích");
+        options.add("Cài đặt tiện ích");
         actions.add(() -> {
             if (context instanceof MainActivity) {
                 ((MainActivity) context).openAdvancedSettingsForWidgets();
-            } else {
-                new WidgetManagerDialog(context, this::rebuildActiveTypes).show();
             }
         });
 
@@ -1622,6 +1671,104 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
                     if (footballLeagueBadge != null) footballLeagueBadge.setText("Trực tiếp");
                     if (footballSportIcon != null) footballSportIcon.setImageResource(R.drawable.ic_sport_football);
                     if (footballBottomHint != null) footballBottomHint.setText("Đang cập nhật lịch thi đấu...");
+                }
+            } else if (type == TYPE_GOLD) {
+                renderHeroMetricCard("Vàng SJC 9999", goldData, R.drawable.bg_weather_dusk, "Giá vàng trong nước");
+            } else if (type == TYPE_CRYPTO) {
+                renderHeroMetricCard("Bitcoin & Crypto", cryptoData, R.drawable.bg_weather_night, "Thị trường tiền số");
+            } else if (type == TYPE_VIETNAM_CALENDAR) {
+                renderHeroMetricCard("Lịch Âm Dương", calendarData, R.drawable.bg_weather_clear, "Âm lịch Việt Nam");
+            } else if (type >= 100) {
+                org.json.JSONObject customData = customAddonsData.get(type);
+                String customTitle = "Tiện ích mở rộng";
+                WidgetAddon addon = null;
+                String addonId = WidgetAddonManager.getInstance(context).getIdForWidgetType(type);
+                if (addonId != null) {
+                    for (WidgetAddon a : WidgetAddonManager.getInstance(context).getInstalledAddons()) {
+                        if (a.getId().equalsIgnoreCase(addonId)) {
+                            addon = a;
+                            customTitle = a.getName();
+                            break;
+                        }
+                    }
+                }
+                renderHeroMetricCard(customTitle, customData, R.drawable.bg_weather_clouds, addon != null ? addon.getDescription() : "Tiện ích mở rộng");
+            }
+        }
+
+        private void renderHeroMetricCard(String defaultCategory, org.json.JSONObject data, int bgRes, String defaultSub) {
+            weatherHeaderContainer.setVisibility(View.VISIBLE);
+            weatherHumidityPill.setVisibility(View.GONE);
+            heroMetric.setTextSize(34f);
+            heroMetric.setVisibility(View.VISIBLE);
+
+            bgImage.setImageResource(bgRes);
+            bgImage.setAlpha(0.65f);
+            bgImage.setVisibility(View.VISIBLE);
+            bgScrim.setBackgroundResource(R.drawable.widget_scrim_gradient);
+            bgScrim.setVisibility(View.VISIBLE);
+
+            if (data != null) {
+                String headerLeft = data.optString("headerLeft", defaultCategory);
+                String headerRight = data.optString("headerRight", "");
+                weatherLocationText.setText(headerLeft);
+                weatherConditionText.setText(headerRight);
+
+                double rawVal = data.optDouble("rawTemp", 0.0);
+                String heroUnit = data.optString("heroUnit", "");
+                if (rawVal > 0) {
+                    if (rawVal >= 1000) {
+                        heroMetric.setText(String.format(java.util.Locale.US, "%,.0f %s", rawVal, heroUnit).trim());
+                    } else {
+                        heroMetric.setText(String.format(java.util.Locale.US, "%.1f %s", rawVal, heroUnit).trim());
+                    }
+                } else {
+                    String heroText = data.optString("heroMetric", heroUnit);
+                    heroMetric.setText(heroText.isEmpty() ? defaultSub : heroText);
+                }
+
+                org.json.JSONArray subArr = data.optJSONArray("subItems");
+                if (subArr != null && subArr.length() > 0 && weatherForecastContainer != null) {
+                    weatherForecastContainer.setVisibility(View.VISIBLE);
+                    if (subArr.length() > 0 && forecastDay1 != null) {
+                        org.json.JSONObject s0 = subArr.optJSONObject(0);
+                        if (s0 != null) {
+                            forecastDay1Name.setText(s0.optString("label", ""));
+                            forecastDay1Icon.setVisibility(View.GONE);
+                            double v = s0.optDouble("temp", 0);
+                            forecastDay1Temp.setText(v >= 1000 ? String.format(java.util.Locale.US, "%,.0f", v) : (v > 0 ? String.valueOf(v) : s0.optString("value", "--")));
+                            forecastDay1.setVisibility(View.VISIBLE);
+                        }
+                    }
+                    if (subArr.length() > 1 && forecastDay2 != null) {
+                        org.json.JSONObject s1 = subArr.optJSONObject(1);
+                        if (s1 != null) {
+                            forecastDay2Name.setText(s1.optString("label", ""));
+                            forecastDay2Icon.setVisibility(View.GONE);
+                            double v = s1.optDouble("temp", 0);
+                            forecastDay2Temp.setText(v >= 1000 ? String.format(java.util.Locale.US, "%,.0f", v) : (v > 0 ? String.valueOf(v) : s1.optString("value", "--")));
+                            forecastDay2.setVisibility(View.VISIBLE);
+                        }
+                    }
+                    if (subArr.length() > 2 && forecastDay3 != null) {
+                        org.json.JSONObject s2 = subArr.optJSONObject(2);
+                        if (s2 != null) {
+                            forecastDay3Name.setText(s2.optString("label", ""));
+                            forecastDay3Icon.setVisibility(View.GONE);
+                            double v = s2.optDouble("temp", 0);
+                            forecastDay3Temp.setText(v >= 1000 ? String.format(java.util.Locale.US, "%,.0f", v) : (v > 0 ? String.valueOf(v) : s2.optString("value", "--")));
+                            forecastDay3.setVisibility(View.VISIBLE);
+                        }
+                    }
+                } else if (weatherForecastContainer != null) {
+                    weatherForecastContainer.setVisibility(View.GONE);
+                }
+            } else {
+                weatherLocationText.setText(defaultCategory);
+                weatherConditionText.setText("Đang cập nhật");
+                heroMetric.setText("--");
+                if (weatherForecastContainer != null) {
+                    weatherForecastContainer.setVisibility(View.GONE);
                 }
             }
         }

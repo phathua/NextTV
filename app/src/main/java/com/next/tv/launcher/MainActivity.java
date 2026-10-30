@@ -991,6 +991,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             showMemoryCleanerDrawer(null);
             return true;
         }
+        if ("com.next.tv.launcher.action.OPEN_WIDGETS_SETTINGS".equals(action)) {
+            openAdvancedSettingsForWidgets();
+            return true;
+        }
         if ("com.next.tv.launcher.action.OPEN_ADVANCED_SETTINGS".equals(action)) {
             showAdvancedSettingsDrawer();
             return true;
@@ -3514,12 +3518,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 this::showRemoteControlDrawer,
                 this::showRemoteFileDrawer,
                 this::showWallpaperPicker,
-                () -> new com.next.tv.launcher.widget.WidgetManagerDialog(this, () -> {
-                    if (widgetAdapter != null) {
-                        widgetAdapter.rebuildActiveTypes();
-                        refreshWidgetsBackground();
-                    }
-                }).show(),
+                this::openAdvancedSettingsForWidgets,
                 () -> enterSectionManagement(null),
                 this::showAdvancedSettingsDrawer);
         utilityAdapter.setOnKidModeRequestedListener(this::showKidModeControlDrawer);
