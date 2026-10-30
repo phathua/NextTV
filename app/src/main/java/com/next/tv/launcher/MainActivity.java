@@ -117,6 +117,7 @@ import com.next.tv.launcher.wallpaper.WallpaperPickerDrawer;
 import com.next.tv.launcher.widget.WidgetSectionAdapter;
 import com.next.tv.launcher.clean.BackgroundAppCleaner;
 import com.next.tv.launcher.utility.AdvancedSettingsDrawer;
+import com.next.tv.launcher.widget.WidgetManagerDrawer;
 import com.next.tv.launcher.widget.WidgetConfigManager;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -231,6 +232,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private GlobalSearchOverlayManager searchOverlayManager;
     private SearchSettingsDrawer searchSettingsDrawer;
     private AdvancedSettingsDrawer advancedSettingsDrawer;
+    private WidgetManagerDrawer widgetManagerDrawer;
     private com.next.tv.launcher.clean.MemoryCleanerDrawer memoryCleanerDrawer;
     private WallpaperPickerDrawer wallpaperPickerDrawer;
     private com.next.tv.launcher.widget.WidgetAddonManager.OnAddonsChangedListener widgetAddonListener;
@@ -1142,6 +1144,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (advancedSettingsDrawer != null && advancedSettingsDrawer.isShowing()) {
                 advancedSettingsDrawer.dismiss();
             }
+            if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
+                widgetManagerDrawer.dismiss();
+            }
             if (memoryCleanerDrawer != null && memoryCleanerDrawer.isShowing()) {
                 memoryCleanerDrawer.dismiss();
             }
@@ -1708,6 +1713,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 }
                 return true;
             }
+            if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
+                if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                    widgetManagerDrawer.dismiss();
+                }
+                return true;
+            }
             if (memoryCleanerDrawer != null && memoryCleanerDrawer.isShowing()) {
                 if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                     memoryCleanerDrawer.dismiss();
@@ -1897,6 +1908,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (advancedSettingsDrawer != null && advancedSettingsDrawer.isShowing()) {
             advancedSettingsDrawer.dismiss();
+            return;
+        }
+        if (widgetManagerDrawer != null && widgetManagerDrawer.isShowing()) {
+            widgetManagerDrawer.dismiss();
             return;
         }
         if (memoryCleanerDrawer != null && memoryCleanerDrawer.isShowing()) {
@@ -3526,7 +3541,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 this::showRemoteControlDrawer,
                 this::showRemoteFileDrawer,
                 this::showWallpaperPicker,
-                this::openAdvancedSettingsForWidgets,
+                this::showWidgetManagerDrawer,
                 () -> enterSectionManagement(null),
                 this::showAdvancedSettingsDrawer);
         utilityAdapter.setOnKidModeRequestedListener(this::showKidModeControlDrawer);
@@ -3604,11 +3619,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         advancedSettingsDrawer.show(triggerView);
     }
 
-    public void openAdvancedSettingsForWidgets() {
-        if (advancedSettingsDrawer == null) {
-            showAdvancedSettingsDrawer(null);
+    public void showWidgetManagerDrawer() {
+        showWidgetManagerDrawer(null);
+    }
+
+    public void showWidgetManagerDrawer(View triggerView) {
+        if (widgetManagerDrawer == null) {
+            widgetManagerDrawer = new WidgetManagerDrawer(this);
         }
-        advancedSettingsDrawer.showWidgetsManagement();
+        widgetManagerDrawer.show(triggerView);
+    }
+
+    public void openAdvancedSettingsForWidgets() {
+        showWidgetManagerDrawer();
     }
 
     public void showMemoryCleanerDrawer(View triggerView) {

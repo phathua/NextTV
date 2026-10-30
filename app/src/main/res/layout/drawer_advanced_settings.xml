@@ -40,7 +40,7 @@
                 android:id="@+id/tvSubPanelTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="QUẢN LÝ TIỆN ÍCH"
+                android:text="TÙY CHỈNH THIẾT LẬP"
                 android:textColor="#FFFFFFFF"
                 android:textSize="18sp"
                 android:letterSpacing="0.08"
@@ -258,56 +258,6 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 2. Quản lý tiện ích (Mở Panel Phụ bên trái) -->
-                    <LinearLayout
-                        android:id="@+id/itemManageWidgets"
-                        android:layout_width="match_parent"
-                        android:layout_height="62dp"
-                        android:layout_marginTop="8dp"
-                        android:background="@drawable/drawer_menu_item_bg"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:focusable="true"
-                        android:clickable="true">
-
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:layout_marginEnd="14dp"
-                            android:src="@drawable/ic_widget_settings"
-                            android:tint="@color/drawer_menu_icon_tint"
-                            android:duplicateParentState="true"
-                            android:contentDescription="@null" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
-                            android:layout_height="wrap_content"
-                            android:duplicateParentState="true"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Quản lý tiện ích"
-                                android:textSize="14sp"
-                                android:fontFamily="@string/font_medium"
-                                android:duplicateParentState="true"
-                                android:textColor="@color/drawer_menu_text_color" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="Bật tắt widget màn hình"
-                                android:textSize="11sp"
-                                android:fontFamily="@string/font_regular"
-                                android:duplicateParentState="true"
-                                android:textColor="@color/drawer_menu_subtext_color" />
-                        </LinearLayout>
-                    </LinearLayout>
 
                     <!-- 3. Sắp xếp màn hình (Mở Panel Phụ bên trái) -->
                     <LinearLayout

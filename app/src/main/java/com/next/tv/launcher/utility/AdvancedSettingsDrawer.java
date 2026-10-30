@@ -24,15 +24,6 @@ import com.next.tv.launcher.SystemSettings;
 import com.next.tv.launcher.TvRecommendationReader;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
-import com.next.tv.launcher.widget.WidgetConfigManager;
-import com.next.tv.launcher.widget.WidgetAddon;
-import com.next.tv.launcher.widget.WidgetAddonManager;
-import com.next.tv.launcher.widget.AddonConfigServer;
-import com.next.tv.launcher.widget.DeviceIpAddress;
-import com.next.tv.launcher.widget.QrCodeGenerator;
-import android.widget.EditText;
-import android.app.AlertDialog;
-import android.graphics.Bitmap;
 
 import java.util.List;
 
@@ -65,14 +56,9 @@ public final class AdvancedSettingsDrawer {
     private View lastOpenedSourceItem;
 
     private View itemManagePin;
-    private View itemManageWidgets;
     private View itemReorderSections;
     private View itemReducedMotion;
     private View itemDeviceInfo;
-    private AddonConfigServer addonConfigServer;
-    private Bitmap qrBitmap;
-    private ImageView ivQr;
-    private int movingWidgetIndex = -1;
 
     public AdvancedSettingsDrawer(Activity activity, OnAdvancedActionsListener listener) {
         this.activity = activity;
@@ -112,13 +98,11 @@ public final class AdvancedSettingsDrawer {
         updateStatuses();
 
         itemManagePin = drawerView.findViewById(R.id.itemManagePin);
-        itemManageWidgets = drawerView.findViewById(R.id.itemManageWidgets);
         itemReorderSections = drawerView.findViewById(R.id.itemReorderSections);
         itemReducedMotion = drawerView.findViewById(R.id.itemReducedMotion);
         itemDeviceInfo = drawerView.findViewById(R.id.itemDeviceInfo);
 
         setupItemFocus(itemManagePin);
-        setupItemFocus(itemManageWidgets);
         setupItemFocus(itemReorderSections);
         setupItemFocus(itemReducedMotion);
         setupItemFocus(itemDeviceInfo);
@@ -144,7 +128,6 @@ public final class AdvancedSettingsDrawer {
         };
 
         if (itemManagePin != null) itemManagePin.setOnKeyListener(masterItemKeyListener);
-        if (itemManageWidgets != null) itemManageWidgets.setOnKeyListener(masterItemKeyListener);
         if (itemReorderSections != null) itemReorderSections.setOnKeyListener(masterItemKeyListener);
         if (itemReducedMotion != null) itemReducedMotion.setOnKeyListener(masterItemKeyListener);
         if (itemDeviceInfo != null) itemDeviceInfo.setOnKeyListener(masterItemKeyListener);
@@ -170,10 +153,6 @@ public final class AdvancedSettingsDrawer {
                         });
                 pinDialog.show();
             });
-        }
-
-        if (itemManageWidgets != null) {
-            itemManageWidgets.setOnClickListener(v -> { lastOpenedSourceItem = itemManageWidgets; openWidgetsSubPanel(); });
         }
 
         if (itemReorderSections != null) {
@@ -221,23 +200,12 @@ public final class AdvancedSettingsDrawer {
         if (autoFocusMaster) {
             if (itemUserMode != null) {
                 itemUserMode.post(() -> itemUserMode.requestFocus());
-            } else if (itemManageWidgets != null) {
-                itemManageWidgets.post(() -> itemManageWidgets.requestFocus());
             } else if (itemManagePin != null) {
                 itemManagePin.post(() -> itemManagePin.requestFocus());
             }
         }
     }
 
-    public void showWidgetsManagement() {
-        if (!isShowing) {
-            show(null, false);
-        }
-        lastOpenedSourceItem = itemManageWidgets;
-        openWidgetsSubPanel();
-    }
-
-    
     private void openUserModeSubPanel() {
         isSubPanelOpen = true;
         tvSubPanelTitle.setText("CHẾ ĐỘ HOẠT ĐỘNG");
@@ -341,564 +309,6 @@ public final class AdvancedSettingsDrawer {
         });
 
         containerSubPanelItems.addView(row);
-    }
-
-    private void stopConfigServer() {
-        if (ivQr != null) {
-            ivQr.setImageBitmap(null);
-            ivQr = null;
-        }
-        if (qrBitmap != null) {
-            if (!qrBitmap.isRecycled()) {
-                qrBitmap.recycle();
-            }
-            qrBitmap = null;
-        }
-        if (addonConfigServer != null) {
-            addonConfigServer.stopSafe();
-            addonConfigServer = null;
-        }
-    }
-
-    private void openWidgetsSubPanel() {
-        if (advancedSubPanel == null || containerSubPanelItems == null) return;
-        isSubPanelOpen = true;
-        stopConfigServer();
-
-        if (tvSubPanelTitle != null) tvSubPanelTitle.setText("QUẢN LÝ TIỆN ÍCH");
-        if (tvSubPanelSub != null) tvSubPanelSub.setText("Tùy chỉnh và mở rộng tiện ích");
-
-        containerSubPanelItems.removeAllViews();
-
-        addMenuNavigationRow("Sắp xếp và bật tắt", "Thay đổi vị trí hoặc ẩn hiện", R.drawable.ic_widget_settings, () -> {
-            openWidgetReorderScreen();
-        });
-
-        addMenuNavigationRow("Cửa hàng tiện ích", "Duyệt kho tiện ích trực tuyến", R.drawable.ic_layers, () -> {
-            openWidgetStoreScreen();
-        });
-
-        addMenuNavigationRow("Cài đặt từ điện thoại", "Quét mã QR kết nối nhanh", R.drawable.ic_mode_tuning, () -> {
-            openWidgetQrScreen();
-        });
-
-        addMenuNavigationRow("Thêm từ liên kết", "Cài đặt bằng đường dẫn tệp cấu hình", R.drawable.ic_arrow_right, () -> {
-            showAddonUrlDialog();
-        });
-
-        animateOpenSubPanel(() -> {
-            if (containerSubPanelItems.getChildCount() > 0) {
-                View first = containerSubPanelItems.getChildAt(0);
-                first.post(() -> first.requestFocus());
-            }
-        });
-    }
-
-    private void notifyWidgetsChanged() {
-        if (actionsListener != null) {
-            actionsListener.onManageWidgets();
-        }
-    }
-
-    private void addBackNavigationRow(String title, Runnable onClick) {
-        float density = activity.getResources().getDisplayMetrics().density;
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-        row.setFocusable(true);
-        row.setClickable(true);
-        row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = (int) (12 * density);
-        row.setLayoutParams(lp);
-
-        TextView tvTitle = new TextView(activity);
-        tvTitle.setText("< " + title);
-        tvTitle.setTextColor(Color.parseColor("#38BDF8"));
-        tvTitle.setTextSize(13f);
-        tvTitle.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        row.addView(tvTitle);
-
-        row.setOnClickListener(v -> {
-            if (onClick != null) onClick.run();
-        });
-
-        row.setOnFocusChangeListener((v, hasFocus) -> {
-            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#38BDF8"));
-        });
-
-        row.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
-                    return true;
-                }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (onClick != null) onClick.run();
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        containerSubPanelItems.addView(row);
-    }
-
-    private void addMenuNavigationRow(String title, String subtitle, int iconRes, Runnable onClick) {
-        float density = activity.getResources().getDisplayMetrics().density;
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-        row.setFocusable(true);
-        row.setClickable(true);
-        row.setPadding((int) (14 * density), (int) (12 * density), (int) (14 * density), (int) (12 * density));
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = (int) (8 * density);
-        row.setLayoutParams(lp);
-
-        ImageView ivIcon = new ImageView(activity);
-        ivIcon.setImageResource(iconRes);
-        int iconSize = (int) (22 * density);
-        LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
-        lpIcon.setMarginEnd((int) (14 * density));
-        ivIcon.setLayoutParams(lpIcon);
-        ivIcon.setColorFilter(Color.parseColor("#E4E4E7"));
-        row.addView(ivIcon);
-
-        LinearLayout textCol = new LinearLayout(activity);
-        textCol.setOrientation(LinearLayout.VERTICAL);
-        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView tvTitle = new TextView(activity);
-        tvTitle.setText(title);
-        tvTitle.setTextColor(Color.parseColor("#F4F4F5"));
-        tvTitle.setTextSize(14f);
-        textCol.addView(tvTitle);
-
-        TextView tvSub = new TextView(activity);
-        tvSub.setText(subtitle);
-        tvSub.setTextColor(Color.parseColor("#71717A"));
-        tvSub.setTextSize(11f);
-        tvSub.setPadding(0, (int) (2 * density), 0, 0);
-        textCol.addView(tvSub);
-
-        row.addView(textCol);
-
-        ImageView ivChevron = new ImageView(activity);
-        ivChevron.setImageResource(R.drawable.ic_arrow_right);
-        int chevSize = (int) (18 * density);
-        LinearLayout.LayoutParams lpChev = new LinearLayout.LayoutParams(chevSize, chevSize);
-        ivChevron.setLayoutParams(lpChev);
-        ivChevron.setColorFilter(Color.parseColor("#71717A"));
-        row.addView(ivChevron);
-
-        row.setOnClickListener(v -> {
-            if (onClick != null) onClick.run();
-        });
-
-        row.setOnFocusChangeListener((v, hasFocus) -> {
-            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
-            tvSub.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#71717A"));
-            ivIcon.setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#E4E4E7"));
-            ivChevron.setColorFilter(Color.parseColor(hasFocus ? "#09090B" : "#71717A"));
-        });
-
-        row.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
-                    return true;
-                }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                    closeSubPanel();
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        containerSubPanelItems.addView(row);
-    }
-
-    private void openWidgetReorderScreen() {
-        if (advancedSubPanel == null || containerSubPanelItems == null) return;
-        if (tvSubPanelTitle != null) tvSubPanelTitle.setText("SẮP XẾP TIỆN ÍCH");
-        if (tvSubPanelSub != null) tvSubPanelSub.setText("Bấm OK để đổi vị trí, giữ để bật tắt");
-
-        refreshWidgetReorderList();
-    }
-
-    private void refreshWidgetReorderList() {
-        containerSubPanelItems.removeAllViews();
-        float density = activity.getResources().getDisplayMetrics().density;
-
-        addBackNavigationRow("Quay lại danh mục", () -> {
-            movingWidgetIndex = -1;
-            openWidgetsSubPanel();
-        });
-
-        WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
-        List<WidgetAddon> list = addonMgr.getInstalledAddons();
-
-        for (int i = 0; i < list.size(); i++) {
-            final int index = i;
-            final WidgetAddon addon = list.get(i);
-            final boolean isBeingMoved = (movingWidgetIndex == index);
-
-            LinearLayout row = new LinearLayout(activity);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-            row.setFocusable(true);
-            row.setClickable(true);
-            row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
-
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.bottomMargin = (int) (8 * density);
-            row.setLayoutParams(lp);
-
-            LinearLayout textCol = new LinearLayout(activity);
-            textCol.setOrientation(LinearLayout.VERTICAL);
-            textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-            TextView tvTitle = new TextView(activity);
-            tvTitle.setText(addon.getName());
-            tvTitle.setTextColor(Color.parseColor(addon.isEnabled() ? "#F4F4F5" : "#71717A"));
-            tvTitle.setTextSize(13f);
-            textCol.addView(tvTitle);
-
-            TextView tvBadge = new TextView(activity);
-            tvBadge.setText(addon.isBuiltIn() ? "MẶC ĐỊNH" : "MỞ RỘNG");
-            tvBadge.setTextSize(10f);
-            tvBadge.setTextColor(Color.parseColor(addon.isBuiltIn() ? "#71717A" : "#38BDF8"));
-            tvBadge.setPadding(0, (int) (2 * density), 0, 0);
-            textCol.addView(tvBadge);
-
-            row.addView(textCol);
-
-            if (isBeingMoved) {
-                TextView tvMoving = new TextView(activity);
-                tvMoving.setText("Đang đổi (▲/▼)");
-                tvMoving.setTextSize(11f);
-                tvMoving.setTextColor(Color.parseColor("#38BDF8"));
-                tvMoving.setPadding((int) (4 * density), 0, (int) (8 * density), 0);
-                row.addView(tvMoving);
-            }
-
-            TextView tvStatus = new TextView(activity);
-            tvStatus.setText(addon.isEnabled() ? "Bật" : "Tắt");
-            tvStatus.setTextColor(Color.parseColor(addon.isEnabled() ? "#22C55E" : "#71717A"));
-            tvStatus.setTextSize(12f);
-            row.addView(tvStatus);
-
-            row.setOnClickListener(v -> {
-                if (movingWidgetIndex == index) {
-                    movingWidgetIndex = -1;
-                    addonMgr.saveOrderFromList(list);
-                    refreshWidgetReorderList();
-                } else if (movingWidgetIndex != -1) {
-                    movingWidgetIndex = -1;
-                    addonMgr.saveOrderFromList(list);
-                    refreshWidgetReorderList();
-                } else {
-                    movingWidgetIndex = index;
-                    refreshWidgetReorderList();
-                }
-            });
-
-            row.setOnLongClickListener(v -> {
-                boolean newState = !addon.isEnabled();
-                addonMgr.toggleAddon(addon.getId(), newState);
-                refreshWidgetReorderList();
-                Toast.makeText(activity, (newState ? "Đã bật: " : "Đã tắt: ") + addon.getName(), Toast.LENGTH_SHORT).show();
-                return true;
-            });
-
-            row.setOnFocusChangeListener((v, hasFocus) -> {
-                v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : (addon.isEnabled() ? "#F4F4F5" : "#71717A")));
-            });
-
-            row.setOnKeyListener((v, keyCode, event) -> {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    if (keyCode == KeyEvent.KEYCODE_HOME) {
-                        dismiss();
-                        return true;
-                    }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_UP && movingWidgetIndex == index) {
-                        if (index > 0) {
-                            addonMgr.moveAddonOrder(index, index - 1);
-                            movingWidgetIndex = index - 1;
-                            refreshWidgetReorderList();
-                        }
-                        return true;
-                    }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && movingWidgetIndex == index) {
-                        if (index < list.size() - 1) {
-                            addonMgr.moveAddonOrder(index, index + 1);
-                            movingWidgetIndex = index + 1;
-                            refreshWidgetReorderList();
-                        }
-                        return true;
-                    }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                        if (movingWidgetIndex != -1) {
-                            movingWidgetIndex = -1;
-                            refreshWidgetReorderList();
-                            return true;
-                        }
-                        openWidgetsSubPanel();
-                        return true;
-                    }
-                }
-                return false;
-            });
-
-            containerSubPanelItems.addView(row);
-        }
-
-        if (containerSubPanelItems.getChildCount() > 1) {
-            View target = containerSubPanelItems.getChildAt(movingWidgetIndex >= 0 ? movingWidgetIndex + 1 : 1);
-            if (target != null) target.post(() -> target.requestFocus());
-        }
-    }
-
-    private void openWidgetStoreScreen() {
-        if (advancedSubPanel == null || containerSubPanelItems == null) return;
-        if (tvSubPanelTitle != null) tvSubPanelTitle.setText("CỬA HÀNG TIỆN ÍCH");
-        if (tvSubPanelSub != null) tvSubPanelSub.setText("Duyệt và cài đặt tiện ích");
-
-        containerSubPanelItems.removeAllViews();
-        float density = activity.getResources().getDisplayMetrics().density;
-
-        addBackNavigationRow("Quay lại danh mục", () -> openWidgetsSubPanel());
-
-        TextView tvLoading = new TextView(activity);
-        tvLoading.setText("Đang nạp danh mục trực tuyến...");
-        tvLoading.setTextColor(Color.parseColor("#71717A"));
-        tvLoading.setTextSize(13f);
-        tvLoading.setPadding((int) (14 * density), (int) (16 * density), (int) (14 * density), (int) (16 * density));
-        containerSubPanelItems.addView(tvLoading);
-
-        WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
-        addonMgr.fetchStoreCatalog((catalog, success) -> {
-            while (containerSubPanelItems.getChildCount() > 1) {
-                containerSubPanelItems.removeViewAt(1);
-            }
-            if (!success || catalog == null || catalog.isEmpty()) {
-                catalog = addonMgr.buildDefaultStoreCatalog();
-            }
-
-            for (WidgetAddon addon : catalog) {
-                final boolean isInst = addonMgr.isInstalled(addon.getId());
-
-                LinearLayout row = new LinearLayout(activity);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-                row.setFocusable(true);
-                row.setClickable(true);
-                row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
-
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.bottomMargin = (int) (8 * density);
-                row.setLayoutParams(lp);
-
-                LinearLayout textCol = new LinearLayout(activity);
-                textCol.setOrientation(LinearLayout.VERTICAL);
-                textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-                TextView tvTitle = new TextView(activity);
-                tvTitle.setText(addon.getName());
-                tvTitle.setTextColor(Color.parseColor("#F4F4F5"));
-                tvTitle.setTextSize(13f);
-                textCol.addView(tvTitle);
-
-                TextView tvDesc = new TextView(activity);
-                tvDesc.setText(addon.getDescription() != null && !addon.getDescription().isEmpty() ? addon.getDescription() : addon.getAuthor());
-                tvDesc.setTextColor(Color.parseColor("#71717A"));
-                tvDesc.setTextSize(11f);
-                tvDesc.setPadding(0, (int) (2 * density), 0, 0);
-                textCol.addView(tvDesc);
-
-                row.addView(textCol);
-
-                TextView tvAction = new TextView(activity);
-                tvAction.setText(isInst ? "Đã cài" : "Cài đặt");
-                tvAction.setTextColor(Color.parseColor(isInst ? "#71717A" : "#38BDF8"));
-                tvAction.setTextSize(12f);
-                tvAction.setPadding((int) (8 * density), 0, 0, 0);
-                row.addView(tvAction);
-
-                row.setOnClickListener(v -> {
-                    if (isInst) {
-                        if (!addon.isBuiltIn()) {
-                            addonMgr.uninstallAddon(addon.getId());
-                            openWidgetStoreScreen();
-                            Toast.makeText(activity, "Đã gỡ tiện ích: " + addon.getName(), Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(activity, "Tiện ích hệ thống mặc định", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        addonMgr.installFromStore(addon, (ok, msg, a) -> {
-                            openWidgetStoreScreen();
-                            Toast.makeText(activity, "Đã cài đặt: " + addon.getName(), Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                });
-
-                row.setOnFocusChangeListener((v, hasFocus) -> {
-                    v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                    tvTitle.setTextColor(Color.parseColor(hasFocus ? "#09090B" : "#F4F4F5"));
-                    tvDesc.setTextColor(Color.parseColor(hasFocus ? "#52525B" : "#71717A"));
-                    tvAction.setTextColor(Color.parseColor(hasFocus ? "#09090B" : (isInst ? "#71717A" : "#38BDF8")));
-                });
-
-                row.setOnKeyListener((v, keyCode, event) -> {
-                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        if (keyCode == KeyEvent.KEYCODE_HOME) {
-                            dismiss();
-                            return true;
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                            openWidgetsSubPanel();
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-
-                containerSubPanelItems.addView(row);
-            }
-            if (containerSubPanelItems.getChildCount() > 1) {
-                View targetRow = containerSubPanelItems.getChildAt(1);
-                if (targetRow != null) targetRow.post(() -> targetRow.requestFocus());
-            }
-        });
-    }
-
-    private void openWidgetQrScreen() {
-        if (advancedSubPanel == null || containerSubPanelItems == null) return;
-        if (tvSubPanelTitle != null) tvSubPanelTitle.setText("CÀI QUA ĐIỆN THOẠI");
-        if (tvSubPanelSub != null) tvSubPanelSub.setText("Quét mã để điều khiển nhanh");
-
-        containerSubPanelItems.removeAllViews();
-        float density = activity.getResources().getDisplayMetrics().density;
-
-        addBackNavigationRow("Quay lại danh mục", () -> {
-            stopConfigServer();
-            openWidgetsSubPanel();
-        });
-
-        // Start config server
-        stopConfigServer();
-        addonConfigServer = new AddonConfigServer(activity);
-        String sessionToken = String.format(java.util.Locale.US, "%06d", new java.security.SecureRandom().nextInt(900000) + 100000);
-        addonConfigServer.setSessionToken(sessionToken);
-        addonConfigServer.setEventListener(action -> {
-            Toast.makeText(activity, "Điện thoại đã cập nhật tiện ích", Toast.LENGTH_SHORT).show();
-        });
-        addonConfigServer.startSafe();
-
-        String ip = DeviceIpAddress.get(activity);
-        int port = addonConfigServer.getListeningPort();
-        if (port <= 0) port = 8888;
-        String serverUrl = "http://" + ip + ":" + port + "/?token=" + sessionToken;
-
-        LinearLayout card = new LinearLayout(activity);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-        card.setPadding((int) (18 * density), (int) (18 * density), (int) (18 * density), (int) (18 * density));
-        card.setFocusable(true);
-        card.setClickable(true);
-
-        LinearLayout.LayoutParams lpCard = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        card.setLayoutParams(lpCard);
-
-        ivQr = new ImageView(activity);
-        int qrSize = (int) (220 * density);
-        LinearLayout.LayoutParams lpQr = new LinearLayout.LayoutParams(qrSize, qrSize);
-        ivQr.setLayoutParams(lpQr);
-
-        qrBitmap = QrCodeGenerator.generate(serverUrl, qrSize);
-        if (qrBitmap != null) {
-            ivQr.setImageBitmap(qrBitmap);
-        }
-        card.addView(ivQr);
-
-        TextView tvUrl = new TextView(activity);
-        tvUrl.setText(serverUrl);
-        tvUrl.setTextColor(Color.parseColor("#38BDF8"));
-        tvUrl.setTextSize(14f);
-        tvUrl.setPadding(0, (int) (14 * density), 0, (int) (6 * density));
-        card.addView(tvUrl);
-
-        TextView tvHint = new TextView(activity);
-        tvHint.setText("Kết nối cùng Wi-Fi và quét mã bằng camera điện thoại để cài đặt hoặc sắp xếp.");
-        tvHint.setTextColor(Color.parseColor("#A1A1AA"));
-        tvHint.setTextSize(11f);
-        tvHint.setGravity(Gravity.CENTER);
-        card.addView(tvHint);
-
-        card.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
-                    return true;
-                }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                    stopConfigServer();
-                    openWidgetsSubPanel();
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        containerSubPanelItems.addView(card);
-        card.post(() -> card.requestFocus());
-    }
-
-    private void showAddonUrlDialog() {
-        float density = activity.getResources().getDisplayMetrics().density;
-        EditText input = new EditText(activity);
-        input.setHint("https://example.com/cau-hinh.json");
-        input.setTextColor(Color.WHITE);
-        input.setHintTextColor(Color.parseColor("#71717A"));
-        input.setTextSize(13f);
-        input.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
-
-        new AlertDialog.Builder(activity, R.style.Theme_TvHome)
-                .setTitle("Thêm tiện ích từ liên kết")
-                .setMessage("Nhập liên kết tệp cấu hình tiện ích:")
-                .setView(input)
-                .setPositiveButton("Cài đặt", (dialog, which) -> {
-                    String url = input.getText().toString().trim();
-                    if (!url.isEmpty()) {
-                        Toast.makeText(activity, "Đang tải cấu hình tiện ích...", Toast.LENGTH_SHORT).show();
-                        WidgetAddonManager.getInstance(activity).installFromUrl(url, (success, msg, addon) -> {
-                            if (success) {
-                                Toast.makeText(activity, "Cài đặt thành công: " + (addon != null ? addon.getName() : ""), Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(activity, "Cài đặt thất bại: " + msg, Toast.LENGTH_LONG).show();
-                            }
-                        });
-                    }
-                })
-                .setNegativeButton("Hủy", null)
-                .show();
     }
 
     private void openReorderSectionsSubPanel() {
@@ -1153,7 +563,6 @@ public final class AdvancedSettingsDrawer {
     public void closeSubPanel() {
         if (!isSubPanelOpen || advancedSubPanel == null) return;
         isSubPanelOpen = false;
-        stopConfigServer();
         float density = activity.getResources().getDisplayMetrics().density;
         int shift = advancedSubPanel.getWidth() > 0 ? advancedSubPanel.getWidth() : (int) (380 * density);
         advancedSubPanel.animate().translationX(shift).setDuration(180)
@@ -1258,7 +667,6 @@ public final class AdvancedSettingsDrawer {
 
     public void dismiss() {
         if (!isShowing || drawerView == null) return;
-        stopConfigServer();
 
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).unblockMainContentFocus();

@@ -37,6 +37,7 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
     public static final int TYPE_REMOTE_CONTROL = 4;
     public static final int TYPE_REMOTE_FILE = 5;
     public static final int TYPE_WALLPAPER = 6;
+    public static final int TYPE_WIDGET_MANAGER = 7;
 
     private final java.util.List<Integer> activeTypes = new java.util.ArrayList<>();
     private int currentMode = 0;
@@ -133,11 +134,13 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
             activeTypes.add(TYPE_WALLPAPER);
         } else if (mode == com.next.tv.launcher.onboarding.OnboardingDialog.MODE_BALANCED) {
             activeTypes.add(TYPE_SETTINGS);
+            activeTypes.add(TYPE_WIDGET_MANAGER);
             activeTypes.add(TYPE_CLEAN_RAM);
             activeTypes.add(TYPE_REMOTE_CONTROL);
             activeTypes.add(TYPE_WALLPAPER);
         } else {
             activeTypes.add(TYPE_SETTINGS);
+            activeTypes.add(TYPE_WIDGET_MANAGER);
             activeTypes.add(TYPE_HIDE_APPS);
             activeTypes.add(TYPE_KID_MODE);
             activeTypes.add(TYPE_CLEAN_RAM);
@@ -190,8 +193,13 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                 } else {
                     holder.icon.setImageResource(R.drawable.ic_layers);
                     holder.title.setText("Chế độ Đầy đủ");
-                    holder.subtitle.setText("Quản trị tiện ích");
+                    holder.subtitle.setText("Quản lý nâng cao");
                 }
+                break;
+            case TYPE_WIDGET_MANAGER:
+                holder.icon.setImageResource(R.drawable.ic_widget_settings);
+                holder.title.setText("Quản lý tiện ích");
+                holder.subtitle.setText("Kho & cấu hình");
                 break;
             case TYPE_HIDE_APPS:
                 holder.icon.setImageResource(R.drawable.ic_hide_apps);
@@ -304,6 +312,11 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                     advancedSettingsListener.onAdvancedSettingsRequested(holder.itemView);
                 } else {
                     showManageChoiceDialog();
+                }
+                break;
+            case TYPE_WIDGET_MANAGER:
+                if (widgetManagerListener != null) {
+                    widgetManagerListener.onWidgetManagerRequested();
                 }
                 break;
             case TYPE_HIDE_APPS:
