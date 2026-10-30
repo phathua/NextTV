@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.next.tv.launcher.search.SearchOverlayRootView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/searchOverlayRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:descendantFocusability="afterDescendants"
+    android:focusable="false"
+    android:clickable="true">
+
+    <!-- Transparent backdrop click area to dismiss when clicking anywhere outside -->
+    <View
+        android:id="@+id/searchDismissBackdrop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent"
+        android:focusable="false"
+        android:clickable="true" />
+
+    <!-- Subtle gradient scrim at the bottom edge for text readability -->
+    <View
+        android:id="@+id/searchBottomScrim"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/search_bottom_scrim"
+        android:focusable="false"
+        android:clickable="false" />
+
+    <!-- 1. FLOATING VOICE LISTENING CONTAINER (Matching Samsung Bixby / Modern Assistant) -->
+    <LinearLayout
+        android:id="@+id/searchListeningContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="44dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:visibility="visible">
+
+        <!-- Glowing voice bubble -->
+        <FrameLayout
+            android:id="@+id/voiceBubbleContainer"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/search_voice_bubble_bg">
+
+            <ImageView
+                android:id="@+id/searchListeningMic"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_search_voice"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+        <!-- Dimmed hint text / real-time spoken text streaming -->
+        <TextView
+            android:id="@+id/voiceListeningPrompt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:text="Tìm kiếm..."
+            android:textColor="#99FFFFFF"
+            android:textSize="18sp"
+            android:fontFamily="@string/font_medium"
+            android:gravity="center"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="6" />
+
+        <!-- Subtitle hint -->
+        <TextView
+            android:id="@+id/voiceListeningSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Thử nói: Batman, Hoạt hình, Ca nhạc..."
+            android:textColor="#66FFFFFF"
+            android:textSize="13sp"
+            android:fontFamily="@string/font_regular"
+            android:gravity="center"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4" />
+
+        <!-- Floating "Nói lại" pill if speech timed out or errored -->
+        <TextView
+            android:id="@+id/btnListeningRetry"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:text="Nói lại"
+            android:textColor="@color/search_pill_text_color"
+            android:textSize="14sp"
+            android:fontFamily="@string/font_medium"
+            android:background="@drawable/search_pill_btn_bg"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:defaultFocusHighlightEnabled="false"
+            android:clickable="true"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 2. COMPACT BOTTOM RESULTS SHEET (Matching Google Assistant / Apple tvOS) -->
+    <LinearLayout
+        android:id="@+id/searchResultsBottomPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="@drawable/search_bottom_sheet_bg"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="24dp"
+        android:visibility="gone"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Top Row: Section Title / Query + Category Filter Pills -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <TextView
+                android:id="@+id/searchResultHeaderTitle"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Kết quả tìm kiếm"
+                android:textColor="#F4F4F5"
+                android:textSize="16sp"
+                android:fontFamily="@string/font_medium" />
+
+            <!-- Category Filter Pills (Image 2 style) -->
+            <LinearLayout
+                android:id="@+id/searchCategoryPills"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp">
+
+                <TextView
+                    android:id="@+id/pillFilterAll"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="Tất cả"
+                    android:textColor="@color/search_pill_text_color"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium"
+                    android:background="@drawable/search_pill_btn_bg"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:defaultFocusHighlightEnabled="false"
+                    android:clickable="true" />
+
+                <TextView
+                    android:id="@+id/pillFilterMovies"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="Phim"
+                    android:textColor="@color/search_pill_text_color"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium"
+                    android:background="@drawable/search_pill_btn_bg"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:defaultFocusHighlightEnabled="false"
+                    android:clickable="true" />
+
+                <TextView
+                    android:id="@+id/pillFilterVideos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="Video"
+                    android:textColor="@color/search_pill_text_color"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium"
+                    android:background="@drawable/search_pill_btn_bg"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:defaultFocusHighlightEnabled="false"
+                    android:clickable="true" />
+
+                <TextView
+                    android:id="@+id/pillFilterWeb"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:text="Mạng"
+                    android:textColor="@color/search_pill_text_color"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium"
+                    android:background="@drawable/search_pill_btn_bg"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:defaultFocusHighlightEnabled="false"
+                    android:clickable="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Horizontal Cards Row (Image 2 and Image 1 style) -->
+        <com.next.tv.launcher.HorizontalSectionRecyclerView
+            android:id="@+id/searchHorizontalRecycler"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="horizontal" />
+
+        <!-- Bottom Assistant Bar -->
+        <LinearLayout
+            android:id="@+id/searchBottomAssistantBar"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent" />
+
+            <ImageView
+                android:id="@+id/searchBottomAssistantIcon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/searchBottomQueryText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <!-- Action Pills -->
+            <TextView
+                android:id="@+id/searchVoiceRetryBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="16dp"
+                android:drawableStart="@drawable/ic_search_voice"
+                android:drawablePadding="8dp"
+                android:text="Nói lại từ khóa"
+                android:textColor="@color/search_pill_text_color"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium"
+                android:background="@drawable/search_pill_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:defaultFocusHighlightEnabled="false"
+                android:clickable="true" />
+
+            <TextView
+                android:id="@+id/btnSearchInNuvio"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Mở Nuvio"
+                android:textColor="@color/search_pill_text_color"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium"
+                android:background="@drawable/search_pill_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:defaultFocusHighlightEnabled="false"
+                android:clickable="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btnSearchInStremio"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Mở Stremio"
+                android:textColor="@color/search_pill_text_color"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium"
+                android:background="@drawable/search_pill_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:defaultFocusHighlightEnabled="false"
+                android:clickable="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/btnSearchInCloudStream"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Mở CloudStream"
+                android:textColor="@color/search_pill_text_color"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_medium"
+                android:background="@drawable/search_pill_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:defaultFocusHighlightEnabled="false"
+                android:clickable="true"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+</com.next.tv.launcher.search.SearchOverlayRootView>

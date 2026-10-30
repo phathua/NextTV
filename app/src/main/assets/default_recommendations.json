@@ -1,0 +1,136 @@
+[
+  {
+    "id": "watch_next_unified",
+    "title": "Tiếp tục xem",
+    "isPortrait": true,
+    "items": [
+      {
+        "id": 1001,
+        "title": "Hành Tinh Trái Đất III",
+        "episodeTitle": "Tập 1 - Bờ Biển",
+        "season": 3,
+        "episode": 1,
+        "posterArtUri": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400",
+        "intentUriString": "",
+        "durationMs": 3600000,
+        "positionMs": 1800000,
+        "progressPercent": 50,
+        "isMovie": false,
+        "aspectRatio": 4,
+        "packageName": "com.nuvio.tv"
+      },
+      {
+        "id": 1002,
+        "title": "Ký Sinh Trùng",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400",
+        "intentUriString": "",
+        "durationMs": 7200000,
+        "positionMs": 3600000,
+        "progressPercent": 50,
+        "isMovie": true,
+        "aspectRatio": 4,
+        "packageName": "com.stremio.one"
+      },
+      {
+        "id": 1003,
+        "title": "Thế Giới Hoang Dã",
+        "episodeTitle": "Tập 4 - Rừng Nhiệt Đới",
+        "season": 1,
+        "episode": 4,
+        "posterArtUri": "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400",
+        "intentUriString": "",
+        "durationMs": 3000000,
+        "positionMs": 2100000,
+        "progressPercent": 70,
+        "isMovie": false,
+        "aspectRatio": 4,
+        "packageName": "com.nuvio.tv"
+      },
+      {
+        "id": 1004,
+        "title": "Mắt Biếc",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400",
+        "intentUriString": "",
+        "durationMs": 6600000,
+        "positionMs": 1980000,
+        "progressPercent": 30,
+        "isMovie": true,
+        "aspectRatio": 4,
+        "packageName": "com.stremio.one"
+      }
+    ]
+  },
+  {
+    "id": "channel_recommendations",
+    "title": "Kênh đề xuất",
+    "isPortrait": true,
+    "items": [
+      {
+        "id": 2001,
+        "title": "Vũ Trụ Vô Tận",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400",
+        "intentUriString": "",
+        "durationMs": 5400000,
+        "positionMs": 0,
+        "progressPercent": 0,
+        "isMovie": true,
+        "aspectRatio": 4,
+        "packageName": "com.nuvio.tv"
+      },
+      {
+        "id": 2002,
+        "title": "Đại Dương Sâu Thẳm",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=400",
+        "intentUriString": "",
+        "durationMs": 4800000,
+        "positionMs": 0,
+        "progressPercent": 0,
+        "isMovie": true,
+        "aspectRatio": 4,
+        "packageName": "com.stremio.one"
+      },
+      {
+        "id": 2003,
+        "title": "Khám Phá Thiên Nhiên",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400",
+        "intentUriString": "",
+        "durationMs": 3600000,
+        "positionMs": 0,
+        "progressPercent": 0,
+        "isMovie": false,
+        "aspectRatio": 4,
+        "packageName": "com.nuvio.tv"
+      },
+      {
+        "id": 2004,
+        "title": "Thành Phố Về Đêm",
+        "episodeTitle": "",
+        "season": 0,
+        "episode": 0,
+        "posterArtUri": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400",
+        "intentUriString": "",
+        "durationMs": 6000000,
+        "positionMs": 0,
+        "progressPercent": 0,
+        "isMovie": true,
+        "aspectRatio": 4,
+        "packageName": "com.stremio.one"
+      }
+    ]
+  }
+]

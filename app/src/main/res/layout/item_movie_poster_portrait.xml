@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginEnd="16dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <FrameLayout
+        android:id="@+id/card"
+        android:layout_width="110dp"
+        android:layout_height="165dp"
+        android:background="@drawable/tile_bg"
+        android:focusable="true"
+        android:clickable="true">
+
+        <ImageView
+            android:id="@+id/moviePoster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null" />
+
+        <!-- App Source Logo Mark (Clean, transparent, subtle 18dp icon in top-right) -->
+        <ImageView
+            android:id="@+id/sourceIcon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+
+        <!-- Season / Episode Pill (e.g. S1E6) on top-left of thumbnail -->
+        <TextView
+            android:id="@+id/episodeBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginTop="6dp"
+            android:layout_marginStart="6dp"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1.5dp"
+            android:paddingBottom="1.5dp"
+            android:background="@drawable/badge_pill_dark"
+            android:textColor="#F2FFFFFF"
+            android:textSize="9.5sp"
+            android:fontFamily="@string/font_medium"
+            android:visibility="gone" />
+
+        <!-- Progress bar background track -->
+        <View
+            android:id="@+id/progressTrack"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_gravity="bottom"
+            android:background="#66000000"
+            android:visibility="gone" />
+
+        <!-- Active progress fill -->
+        <View
+            android:id="@+id/progressFill"
+            android:layout_width="0dp"
+            android:layout_height="4dp"
+            android:layout_gravity="bottom|start"
+            android:background="#FFFFFFFF"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/movieTitle"
+        android:layout_width="110dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textColor="#F2FFFFFF"
+        android:textSize="13sp"
+        android:fontFamily="@string/font_medium" />
+
+    <TextView
+        android:id="@+id/movieSubtitle"
+        android:layout_width="110dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textColor="#80FFFFFF"
+        android:textSize="11sp"
+        android:fontFamily="@string/font_regular"
+        android:visibility="gone" />
+
+</LinearLayout>

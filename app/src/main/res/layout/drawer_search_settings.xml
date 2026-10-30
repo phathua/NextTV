@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/searchSettingsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#80000000"
+    android:focusable="false"
+    android:clickable="true">
+
+    <!-- Right Drawer Content -->
+    <LinearLayout
+        android:id="@+id/searchSettingsContent"
+        android:layout_width="380dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#F8121318"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="36dp"
+        android:paddingBottom="24dp"
+        android:focusable="false"
+        android:descendantFocusability="afterDescendants">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CÀI ĐẶT TÌM KIẾM"
+            android:textColor="#FFFFFFFF"
+            android:textSize="18sp"
+            android:letterSpacing="0.08"
+            android:fontFamily="@string/font_medium" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="20dp"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:focusable="false">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:focusable="false">
+
+                <!-- Section 1: Mic Override -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PHÍM CỨNG"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <LinearLayout
+                    android:id="@+id/rowMicOverride"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_remote_mic"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Chặn phím Mic remote"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <Switch
+                        android:id="@+id/switchMicOverride"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Section 2: Permissions -->
+                <TextView
+                    android:id="@+id/headerPermissions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="QUYỀN HỆ THỐNG"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <!-- Row 1: Audio / Mic -->
+                <LinearLayout
+                    android:id="@+id/rowPermAudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_remote_mic"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Ghi âm giọng nói"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <TextView
+                        android:id="@+id/txtBadgeAudio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cấp quyền"
+                        android:textColor="#FFB340"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Row 2: Overlay -->
+                <LinearLayout
+                    android:id="@+id/rowPermOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_perm_overlay"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Hiển thị lớp phủ"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <TextView
+                        android:id="@+id/txtBadgeOverlay"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mở cài đặt"
+                        android:textColor="#FFB340"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Row 3: Accessibility Service -->
+                <LinearLayout
+                    android:id="@+id/rowPermAccess"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_perm_access"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Dịch vụ trợ năng"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <TextView
+                        android:id="@+id/txtBadgeAccess"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mở cài đặt"
+                        android:textColor="#FFB340"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btnAutoGrant"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="Cấp quyền nhanh"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="14sp"
+                    android:fontFamily="@string/font_medium"
+                    android:background="@drawable/drawer_item_bg"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true" />
+
+                <!-- Section 3: Searchable Apps -->
+                <TextView
+                    android:id="@+id/headerSearchSources"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="NGUỒN TÌM KIẾM"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <!-- Nuvio -->
+                <LinearLayout
+                    android:id="@+id/rowNuvio"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:id="@+id/imgIconNuvio"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/txtTitleNuvio"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Nuvio"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switchNuvio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Stremio -->
+                <LinearLayout
+                    android:id="@+id/rowStremio"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:id="@+id/imgIconStremio"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/txtTitleStremio"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Stremio"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switchStremio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- YouTube / SmartTube -->
+                <LinearLayout
+                    android:id="@+id/rowYoutube"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:id="@+id/imgIconYoutube"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/txtTitleYoutube"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="YouTube"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switchYoutube"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Cloudstream -->
+                <LinearLayout
+                    android:id="@+id/rowCloudstream"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:id="@+id/imgIconCloudstream"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/txtTitleCloudstream"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Cloudstream"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switchCloudstream"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Web Search (Generic "Tìm trên mạng") -->
+                <LinearLayout
+                    android:id="@+id/rowBraveNews"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:id="@+id/imgIconWeb"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_search_web"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/txtTitleWeb"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Tìm trên mạng"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switchBraveNews"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+    </LinearLayout>
+</FrameLayout>

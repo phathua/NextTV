@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#09090B"
+    android:paddingStart="56dp"
+    android:paddingEnd="56dp"
+    android:paddingTop="36dp"
+    android:paddingBottom="36dp">
+
+    <!-- 16:9 Horizontal Split-Pane Article Reader Layout -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+
+        <!-- Left Pane: Fixed Meta & Hero Column (38% Width) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="38"
+            android:orientation="vertical"
+            android:layout_marginEnd="36dp">
+
+            <!-- Source & Close Hint Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/readerSourceBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/badge_vnexpress_bg"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:textColor="#E4E4E7"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium" />
+
+                <TextView
+                    android:id="@+id/readerCloseHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:text="Quay lại để đóng"
+                    android:textColor="#71717A"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_regular" />
+            </LinearLayout>
+
+            <!-- Article Headline -->
+            <TextView
+                android:id="@+id/readerTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FAFAFA"
+                android:textSize="22sp"
+                android:fontFamily="@string/font_medium"
+                android:textStyle="bold"
+                android:lineSpacingExtra="3dp"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:layout_marginBottom="14dp" />
+
+            <!-- Fixed Hero Lead Image (16:9 ratio, non-overflowing) -->
+            <ImageView
+                android:id="@+id/readerLeadImage"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:scaleType="centerCrop"
+                android:layout_marginBottom="14dp"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+
+            <!-- Sapo / Lead Summary -->
+            <TextView
+                android:id="@+id/readerSapo"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:textColor="#D4D4D8"
+                android:textSize="14sp"
+                android:fontFamily="@string/font_regular"
+                android:textStyle="italic"
+                android:lineSpacingExtra="3dp"
+                android:ellipsize="end"
+                android:maxLines="6"
+                android:visibility="gone" />
+
+            <!-- Remote Navigation Helper -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Phím Lên / Xuống để cuộn"
+                android:textColor="#52525B"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+
+        <!-- Right Pane: Scrollable Editorial Reading Column (62% Width) -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="62">
+
+            <ScrollView
+                android:id="@+id/readerScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:scrollbars="none"
+                android:focusable="true"
+                android:focusableInTouchMode="true">
+
+                <!-- Dynamic Clean Article Paragraphs & In-line Visuals -->
+                <LinearLayout
+                    android:id="@+id/readerBlocksContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="48dp" />
+
+            </ScrollView>
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Centered Loading State -->
+    <LinearLayout
+        android:id="@+id/readerLoadingContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <ProgressBar
+            android:id="@+id/readerProgressBar"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:indeterminate="true" />
+
+        <TextView
+            android:id="@+id/readerLoadingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Đang tải bài viết..."
+            android:textColor="#A1A1AA"
+            android:textSize="14sp"
+            android:fontFamily="@string/font_medium" />
+    </LinearLayout>
+
+</FrameLayout>

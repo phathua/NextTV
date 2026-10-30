@@ -1,0 +1,13 @@
+{
+  "name": "nexttv-backend",
+  "version": "1.0.0",
+  "description": "NextTV Official Cloudflare Worker Backend & Widget Protocol Proxy",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy src/index.js",
+    "dev": "wrangler dev src/index.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.154.0"
+  }
+}

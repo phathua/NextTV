@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Secondary Shield Frame (Translucent white) -->
+    <path
+        android:fillColor="#66FFFFFF"
+        android:pathData="M3,10.4167C3,7.2191 3,5.6203 3.3775,5.0824C3.755,4.5445 5.2583,4.03 8.2649,3.0008L8.8377,2.8047C10.405,2.2682 11.1886,2 12,2C12.8114,2 13.595,2.2682 15.1623,2.8047L15.7351,3.0008C18.7417,4.03 20.245,4.5445 20.6225,5.0824C21,5.6203 21,7.2191 21,10.4167V11.9914C21,17.6294 16.761,20.3655 14.1014,21.5273C13.38,21.8424 13.0193,22 12,22C10.9807,22 10.62,21.8424 9.8986,21.5273C7.239,20.3655 3,17.6294 3,11.9914V10.4167Z" />
+    <!-- Primary Keyhole (Bright white) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.5,15C13.5,15.5523 13.0523,16 12.5,16H11.5C10.9477,16 10.5,15.5523 10.5,15V13.5987C9.6033,13.0799 9,12.1104 9,11C9,9.3431 10.3431,8 12,8C13.6569,8 15,9.3431 15,11C15,12.1104 14.3967,13.0799 13.5,13.5987V15Z" />
+</vector>

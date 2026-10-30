@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/utilityCardRoot"
+    android:layout_width="196dp"
+    android:layout_height="72dp"
+    android:layout_marginEnd="16dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:background="@drawable/utility_btn_bg"
+    android:focusable="true"
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/utilityIcon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/ic_manage_apps"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/utilityTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#F4F4F5"
+            android:textSize="13sp"
+            android:fontFamily="@string/font_medium"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:text="Quản lý" />
+
+        <TextView
+            android:id="@+id/utilitySubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#A1A1AA"
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:text="Ứng dụng" />
+
+        <ProgressBar
+            android:id="@+id/utilityProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="70"
+            android:progressDrawable="@drawable/ram_progress_bar_bg"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

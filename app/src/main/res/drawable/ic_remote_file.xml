@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Secondary translucent layer for folder body -->
+    <path
+        android:fillColor="#71717A"
+        android:fillAlpha="0.35"
+        android:pathData="M2,18V9C2,7.9 2.9,7 4,7H9L11,9H20C21.1,9 22,9.9 22,11V18C22,19.1 21.1,20 20,20H4C2.9,20 2,19.1 2,18Z" />
+    <!-- Primary crisp white layer for tab and upload/share arrow -->
+    <path
+        android:fillColor="#F4F4F5"
+        android:pathData="M11,9L9,7H4C2.9,7 2,7.9 2,9V6C2,4.9 2.9,4 4,4H9L11,6H20C21.1,6 22,6.9 22,8V11C22,9.9 21.1,9 20,9H11ZM12,12L9,15H11V18H13V15H15L12,12Z" />
+</vector>

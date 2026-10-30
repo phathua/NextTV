@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#80000000">
+
+    <LinearLayout
+        android:layout_width="480dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/dialog_glass_bg"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/dialogTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Đổi vị trí"
+            android:textColor="#FAFAFA"
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dialogSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:text="Chọn tỉnh thành theo dõi"
+            android:textColor="#71717A"
+            android:textSize="13sp"
+            android:fontFamily="@string/font_regular" />
+
+        <ListView
+            android:id="@+id/citiesListView"
+            android:layout_width="match_parent"
+            android:layout_height="320dp"
+            android:divider="@null"
+            android:dividerHeight="6dp"
+            android:scrollbars="none"
+            android:choiceMode="singleChoice" />
+
+    </LinearLayout>
+
+</FrameLayout>

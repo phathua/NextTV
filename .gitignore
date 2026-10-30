@@ -1,0 +1,59 @@
+# Gradle & Build Artifacts
+.gradle/
+build/
+app/build/
+local.properties
+hs_err_pid*.log
+replay_pid*.log
+
+# C++ NDK & Compiled JNI
+app/src/main/cpp/generated_secrets.h
+app/.cxx/
+.externalNativeBuild/
+
+# Environment Variables & Secrets (client-api-security-vault Level 4 Standard)
+.env
+.env.*
+!.env.example
+
+# Android Keystores & Signing Keys
+*.keystore
+*.jks
+*.key
+*.p12
+
+# Output Android Packages
+*.apk
+*.aab
+
+# Cloudflare Wrangler Local State
+**/.dev.vars
+**/.dev.vars.*
+**/.wrangler/
+
+# Node.js & Backend Dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Rust Build Artifacts
+target/
+**/target/
+
+# IDE, Editors & OS Files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# TV Box Dumps & Traces
+traces/
+backup/
+shots/
+.agents/

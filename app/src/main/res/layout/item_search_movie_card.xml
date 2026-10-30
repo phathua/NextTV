@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginEnd="16dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- 16:9 Movie Backdrop / Poster (200dp x 112dp) -->
+    <FrameLayout
+        android:id="@+id/searchCard"
+        android:layout_width="200dp"
+        android:layout_height="112dp"
+        android:background="@drawable/search_card_movie_bg"
+        android:foreground="@drawable/search_card_focus_stroke"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clickable="true">
+
+        <ImageView
+            android:id="@+id/searchCardPoster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/searchCardPlaceholder"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_movie_placeholder"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/widget_scrim_gradient" />
+
+        <!-- Source Logo Icon in Top-Right (20dp x 20dp) -->
+        <ImageView
+            android:id="@+id/searchCardSourceIcon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+
+        <!-- Year / Episode Pill (Optional) -->
+        <TextView
+            android:id="@+id/searchCardBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginBottom="6dp"
+            android:layout_marginEnd="8dp"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1.5dp"
+            android:paddingBottom="1.5dp"
+            android:background="@drawable/badge_pill_dark"
+            android:textColor="#F4F4F5"
+            android:textSize="9.5sp"
+            android:fontFamily="@string/font_medium"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/searchCardTitle"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:textColor="#F4F4F5"
+        android:textSize="13sp"
+        android:fontFamily="@string/font_medium"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/searchCardSubtitle"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="#A1A1AA"
+        android:textSize="11sp"
+        android:fontFamily="@string/font_regular"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+</LinearLayout>

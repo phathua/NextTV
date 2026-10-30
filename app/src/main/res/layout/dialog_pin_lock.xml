@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pinDialogRoot"
+    android:layout_width="360dp"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="28dp"
+    android:background="@drawable/dialog_glass_bg">
+
+    <ImageView
+        android:id="@+id/pinLockIcon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginBottom="12dp"
+        android:src="@drawable/ic_app_locked"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/pinTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#F4F4F5"
+        android:textSize="18sp"
+        android:fontFamily="@string/font_medium"
+        android:text="Nhập mã PIN" />
+
+    <TextView
+        android:id="@+id/pinSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#A1A1AA"
+        android:textSize="13sp"
+        android:text="Bảo vệ ứng dụng" />
+
+    <!-- 4 PIN Dots -->
+    <LinearLayout
+        android:id="@+id/pinDotsContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="16dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/pinDot1"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:gravity="center"
+            android:background="@drawable/pin_box_bg"
+            android:textColor="#F4F4F5"
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium"
+            android:text="—" />
+
+        <TextView
+            android:id="@+id/pinDot2"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:background="@drawable/pin_box_bg"
+            android:textColor="#F4F4F5"
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium"
+            android:text="—" />
+
+        <TextView
+            android:id="@+id/pinDot3"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:background="@drawable/pin_box_bg"
+            android:textColor="#F4F4F5"
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium"
+            android:text="—" />
+
+        <TextView
+            android:id="@+id/pinDot4"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:background="@drawable/pin_box_bg"
+            android:textColor="#F4F4F5"
+            android:textSize="20sp"
+            android:fontFamily="@string/font_medium"
+            android:text="—" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/pinErrorText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:textColor="#EF4444"
+        android:textSize="12sp"
+        android:visibility="invisible"
+        android:text="Mã PIN không đúng" />
+
+    <!-- 3x4 On-Screen Keypad for D-pad remote navigation -->
+    <GridLayout
+        android:id="@+id/pinKeypad"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:columnCount="3"
+        android:rowCount="4"
+        android:alignmentMode="alignMargins"
+        android:useDefaultMargins="true">
+
+        <Button android:id="@+id/key1" style="@style/PinKeypadBtn" android:text="1" />
+        <Button android:id="@+id/key2" style="@style/PinKeypadBtn" android:text="2" />
+        <Button android:id="@+id/key3" style="@style/PinKeypadBtn" android:text="3" />
+
+        <Button android:id="@+id/key4" style="@style/PinKeypadBtn" android:text="4" />
+        <Button android:id="@+id/key5" style="@style/PinKeypadBtn" android:text="5" />
+        <Button android:id="@+id/key6" style="@style/PinKeypadBtn" android:text="6" />
+
+        <Button android:id="@+id/key7" style="@style/PinKeypadBtn" android:text="7" />
+        <Button android:id="@+id/key8" style="@style/PinKeypadBtn" android:text="8" />
+        <Button android:id="@+id/key9" style="@style/PinKeypadBtn" android:text="9" />
+
+        <Button android:id="@+id/keyClear" style="@style/PinKeypadBtnAction" android:text="Xóa" />
+        <Button android:id="@+id/key0" style="@style/PinKeypadBtn" android:text="0" />
+        <Button android:id="@+id/keyCancel" style="@style/PinKeypadBtnAction" android:text="Hủy" />
+    </GridLayout>
+</LinearLayout>

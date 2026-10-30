@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:layout_marginTop="6dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/drawer_item_bg"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/imgKeyGroupIcon"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="@null" />
+
+    <TextView
+        android:id="@+id/txtKeyTitle"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFFFF"
+        android:textSize="14sp"
+        android:fontFamily="@string/font_regular" />
+
+    <TextView
+        android:id="@+id/txtKeyActionBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFB340"
+        android:textSize="13sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:fontFamily="@string/font_medium" />
+</LinearLayout>

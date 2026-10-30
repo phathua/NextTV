@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/kidModeRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#80000000"
+    android:focusable="false"
+    android:clickable="true">
+
+    <!-- Left Area Container for Floating QR Card -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="380dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:focusable="false"
+        android:clickable="false">
+
+        <LinearLayout
+            android:id="@+id/cardKidMonitoringQrFloat"
+            android:layout_width="340dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_floating_qr_card"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="28dp"
+            android:elevation="12dp"
+            android:visibility="gone"
+            android:focusable="false"
+            android:clickable="true">
+
+            <ImageView
+                android:id="@+id/imgKidMonitoringQrFloat"
+                android:layout_width="220dp"
+                android:layout_height="220dp"
+                android:background="@drawable/bg_qr_white"
+                android:padding="8dp"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/txtKidMonitoringUrlFloat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:textColor="#10B981"
+                android:textSize="16sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/txtKidMonitoringNoteFloat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Quét để giám sát TV"
+                android:textColor="#A1A1AA"
+                android:textSize="13sp"
+                android:fontFamily="@string/font_regular" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Right Master Container: Sub-panel & Sidebar -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="horizontal"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:focusable="false">
+
+        <!-- Sub-panel for App Whitelist Selection (380dp) -->
+        <LinearLayout
+            android:id="@+id/kidModeSubPanel"
+            android:layout_width="380dp"
+            android:layout_height="match_parent"
+            android:background="#F8121215"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="36dp"
+            android:paddingBottom="24dp"
+            android:focusable="false"
+            android:visibility="gone"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:descendantFocusability="afterDescendants">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#F8121215"
+                android:elevation="4dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvKidSubPanelTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ỨNG DỤNG CHO PHÉP"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="18sp"
+                    android:letterSpacing="0.08"
+                    android:fontFamily="@string/font_medium" />
+
+                <TextView
+                    android:id="@+id/tvKidSubPanelSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Cho phép trẻ mở khi bật khóa"
+                    android:textColor="#A1A1AA"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_regular" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="#27272A" />
+            </LinearLayout>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:overScrollMode="never"
+                android:clipChildren="true"
+                android:clipToPadding="false"
+                android:focusable="false">
+
+                <LinearLayout
+                    android:id="@+id/containerKidSubPanelItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="12dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:focusable="false" />
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- Right Drawer Sidebar (380dp) -->
+        <LinearLayout
+            android:id="@+id/kidModeContent"
+            android:layout_width="380dp"
+            android:layout_height="match_parent"
+            android:elevation="8dp"
+            android:background="#F8121318"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="36dp"
+        android:paddingBottom="24dp"
+        android:focusable="false"
+        android:descendantFocusability="afterDescendants">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CHẾ ĐỘ TRẺ EM"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp"
+                android:letterSpacing="0.06"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Bảo vệ trẻ em và thời gian xem"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:background="#27272A" />
+        </LinearLayout>
+
+        <!-- Scrollable Action Items -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="false">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="6dp"
+                android:paddingBottom="12dp"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="false">
+
+                <!-- 1. Công tắc Bật/Tắt Chế độ trẻ em -->
+                <LinearLayout
+                    android:id="@+id/itemToggleKidMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:background="@drawable/drawer_menu_item_bg"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="14dp"
+                        android:src="@drawable/ic_kid_mode"
+                        android:tint="@color/drawer_menu_icon_tint"
+                        android:duplicateParentState="true"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Trạng thái"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_text_color" />
+
+                        <TextView
+                            android:id="@+id/tvKidModeStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Đang tắt"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_regular"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_subtext_color" />
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/switchKidMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- 2. Hạn mức thời gian (Quota) -->
+                <LinearLayout
+                    android:id="@+id/itemDailyQuota"
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/drawer_menu_item_bg"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="14dp"
+                        android:src="@drawable/ic_timer"
+                        android:tint="@color/drawer_menu_icon_tint"
+                        android:duplicateParentState="true"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Giới hạn hàng ngày"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_text_color" />
+
+                        <TextView
+                            android:id="@+id/tvDailyQuotaStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="60 phút mỗi ngày"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_regular"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_subtext_color" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 3. Giờ hạn chế / Giới nghiêm (Curfew) -->
+                <LinearLayout
+                    android:id="@+id/itemCurfew"
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/drawer_menu_item_bg"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="14dp"
+                        android:src="@drawable/ic_curfew_moon"
+                        android:tint="@color/drawer_menu_icon_tint"
+                        android:duplicateParentState="true"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Giờ giới nghiêm"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_text_color" />
+
+                        <TextView
+                            android:id="@+id/tvCurfewStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="21:00 đến 06:30"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_regular"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_subtext_color" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 4. Danh sách ứng dụng cho phép (App Whitelist) -->
+                <LinearLayout
+                    android:id="@+id/itemAppWhitelist"
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/drawer_menu_item_bg"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="14dp"
+                        android:src="@drawable/ic_widgets_duotone"
+                        android:tint="@color/drawer_menu_icon_tint"
+                        android:duplicateParentState="true"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ứng dụng cho phép"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_text_color" />
+
+                        <TextView
+                            android:id="@+id/tvWhitelistStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Chọn ứng dụng an toàn"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_regular"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_subtext_color" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 5. Đổi mã PIN Phụ huynh -->
+                <LinearLayout
+                    android:id="@+id/itemChangePin"
+                    android:layout_width="match_parent"
+                    android:layout_height="62dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/drawer_menu_item_bg"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:focusable="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="14dp"
+                        android:src="@drawable/ic_password_lock"
+                        android:tint="@color/drawer_menu_icon_tint"
+                        android:duplicateParentState="true"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:duplicateParentState="true"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Đổi mã PIN"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_text_color" />
+
+                        <TextView
+                            android:id="@+id/tvChangePinStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Bảo vệ 4 số bí mật"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_regular"
+                            android:duplicateParentState="true"
+                            android:textColor="@color/drawer_menu_subtext_color" />
+                    </LinearLayout>
+                </LinearLayout>
+
+
+
+            </LinearLayout>
+        </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

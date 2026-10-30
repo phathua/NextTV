@@ -1,0 +1,860 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginEnd="16dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <FrameLayout
+        android:id="@+id/card"
+        android:layout_width="300dp"
+        android:layout_height="188dp"
+        android:background="@drawable/widget_card_bg"
+        android:focusable="true"
+        android:clickable="true">
+
+        <!-- 1. Full-Bleed Background Image (Weather / News cover) -->
+        <ImageView
+            android:id="@+id/widgetBgImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+
+        <!-- 2. Full-Bleed Gradient Scrim -->
+        <View
+            android:id="@+id/widgetBgScrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/widget_scrim_gradient"
+            android:visibility="gone" />
+
+        <!-- 3. Foreground Content with 16dp Inset Padding -->
+        <RelativeLayout
+            android:id="@+id/widgetContentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Category / Section Label (Legacy/Fallback) -->
+            <TextView
+                android:id="@+id/widgetCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentTop="true"
+                android:textColor="#8E8E93"
+                android:textSize="11sp"
+                android:fontFamily="@string/font_medium"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true"
+                android:visibility="gone" />
+
+            <!-- Meta / Timestamp / Status -->
+            <TextView
+                android:id="@+id/widgetMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentTop="true"
+                android:textColor="#AEAEB2"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular"
+                android:singleLine="true" />
+
+            <!-- Weather Custom Header: Pin + Location on left, Condition on right -->
+            <LinearLayout
+                android:id="@+id/weatherHeaderContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_pin_location"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/weatherLocationText"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="15sp"
+                    android:fontFamily="@string/font_medium"
+                    android:singleLine="true" />
+
+                <TextView
+                    android:id="@+id/weatherConditionText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="13sp"
+                    android:fontFamily="@string/font_regular"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- News Custom Header: Glowing Live Dot + TIN NÓNG on left, VnExpress Pill on right -->
+            <RelativeLayout
+                android:id="@+id/newsHeaderContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="#FF453A" />
+
+                    <TextView
+                        android:id="@+id/newsBadgeCategory"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/widget_news_breaking"
+                        android:textColor="#FF453A"
+                        android:textSize="11sp"
+                        android:fontFamily="@string/font_medium"
+                        android:letterSpacing="0.08" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/newsBadgeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:background="@drawable/badge_vnexpress_bg"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:text="VnExpress"
+                    android:textColor="#E6FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@string/font_medium" />
+            </RelativeLayout>
+
+            <!-- YouTube Trending Header: YouTube Red Capsule Badge on left, Duration Pill on right -->
+            <RelativeLayout
+                android:id="@+id/youtubeHeaderContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/youtubeBadgeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:background="@drawable/badge_youtube_bg"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:text="Thịnh hành"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@string/font_medium" />
+
+                <TextView
+                    android:id="@+id/youtubeDurationBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:background="@drawable/badge_duration_bg"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:textColor="#E6FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@string/font_regular" />
+            </RelativeLayout>
+
+            <!-- Music Header Container: Source App Icon + 'Đang phát' Pill on left, Equalizer Wave on right -->
+            <RelativeLayout
+                android:id="@+id/musicHeaderContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/musicAppIcon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:scaleType="fitCenter"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/musicBadgeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/badge_music_bg"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingBottom="3dp"
+                        android:text="Đang phát"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="11sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/musicEqualizerContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="14dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="horizontal"
+                    android:gravity="bottom">
+
+                    <View
+                        android:id="@+id/eqBar1"
+                        android:layout_width="3dp"
+                        android:layout_height="8dp"
+                        android:background="#22C55E" />
+
+                    <View
+                        android:id="@+id/eqBar2"
+                        android:layout_width="3dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="2dp"
+                        android:background="#22C55E" />
+
+                    <View
+                        android:id="@+id/eqBar3"
+                        android:layout_width="3dp"
+                        android:layout_height="6dp"
+                        android:layout_marginStart="2dp"
+                        android:background="#22C55E" />
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Hero Metric: Large Number (Weather: 46sp / Screen Time: 32sp) -->
+            <TextView
+                android:id="@+id/widgetHeroMetric"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:textColor="#FFFFFFFF"
+                android:textSize="46sp"
+                android:fontFamily="sans-serif-light"
+                android:letterSpacing="-0.04"
+                android:singleLine="true"
+                android:visibility="gone" />
+
+            <!-- Hero Weather Condition Icon (Large 40dp x 40dp, Center Right) -->
+            <ImageView
+                android:id="@+id/weatherConditionIcon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="@null"
+                android:visibility="gone" />
+
+            <!-- Media Center App Icon Fallback (When no album art is available) -->
+            <ImageView
+                android:id="@+id/mediaCenterAppIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_centerInParent="true"
+                android:scaleType="fitCenter"
+                android:contentDescription="@null"
+                android:visibility="gone" />
+
+            <!-- Overlapping App Avatars (Screen Time Top 3) -->
+            <LinearLayout
+                android:id="@+id/usageAvatarsContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:orientation="horizontal"
+                android:clipChildren="false"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/avatarApp1"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="#16171D"
+                    android:padding="2dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/avatarApp2"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="-8dp"
+                    android:background="#16171D"
+                    android:padding="2dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/avatarApp3"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="-8dp"
+                    android:background="#16171D"
+                    android:padding="2dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+            </LinearLayout>
+
+            <!-- Segmented Usage Mini-Chart -->
+            <LinearLayout
+                android:id="@+id/usageBarContainer"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:layout_above="@+id/usageLegendContainer"
+                android:layout_marginBottom="8dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/barSegment1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0"
+                    android:background="#FF453A" />
+
+                <View
+                    android:id="@+id/barGap1"
+                    android:layout_width="2dp"
+                    android:layout_height="match_parent"
+                    android:background="#00000000" />
+
+                <View
+                    android:id="@+id/barSegment2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0"
+                    android:background="#0A84FF" />
+
+                <View
+                    android:id="@+id/barGap2"
+                    android:layout_width="2dp"
+                    android:layout_height="match_parent"
+                    android:background="#00000000" />
+
+                <View
+                    android:id="@+id/barSegment3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0"
+                    android:background="#30D158" />
+            </LinearLayout>
+
+            <!-- Screen Time Legend (Top 2 Apps) -->
+            <LinearLayout
+                android:id="@+id/usageLegendContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/usageLegendText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#EBEBF5"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_regular"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <!-- Bottom Text Container (Title + Subtitle) -->
+            <LinearLayout
+                android:id="@+id/widgetBottomTextContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentBottom="true"
+                android:orientation="vertical">
+
+                <!-- Headline / Video Title -->
+                <TextView
+                    android:id="@+id/widgetHeroTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="14sp"
+                    android:fontFamily="@string/font_medium"
+                    android:lineSpacingExtra="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:shadowColor="#CC000000"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="4"
+                    android:visibility="gone" />
+
+                <!-- Subtitle and Channel/View Info -->
+                <TextView
+                    android:id="@+id/widgetSubText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#D4D4D8"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_regular"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:shadowColor="#CC000000"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="3"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Media Playback Bottom Layout (Thumbnail 44dp + Titles on Left, Play/Pause 36dp on Right) -->
+            <RelativeLayout
+                android:id="@+id/mediaBottomContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <!-- Left: Thumbnail (44dp x 44dp, radius 10dp) + Titles -->
+                <LinearLayout
+                    android:id="@+id/mediaInfoContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/mediaPlayPauseBtn"
+                    android:layout_marginEnd="10dp"
+                    android:layout_centerVertical="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/media_art_bg"
+                        android:clipToOutline="true">
+
+                        <ImageView
+                            android:id="@+id/mediaAlbumArt"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:contentDescription="@null" />
+
+                        <ImageView
+                            android:id="@+id/mediaAppIconFallback"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:layout_gravity="center"
+                            android:scaleType="fitCenter"
+                            android:visibility="gone"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/mediaTrackTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium"
+                            android:singleLine="true"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/mediaTrackArtist"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textColor="#A1A1AA"
+                            android:textSize="12sp"
+                            android:fontFamily="@string/font_regular"
+                            android:singleLine="true"
+                            android:ellipsize="end" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Right: Circular Play/Pause Button (36dp x 36dp, glass #33FFFFFF, white icon) -->
+                <FrameLayout
+                    android:id="@+id/mediaPlayPauseBtn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/media_play_btn_bg"
+                    android:focusable="false"
+                    android:clickable="false">
+
+                    <ImageView
+                        android:id="@+id/mediaPlayPauseIcon"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_pause_white"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+            </RelativeLayout>
+
+            <!-- Weather Humidity Pill (Bottom Right) -->
+            <TextView
+                android:id="@+id/weatherHumidityPill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"
+                android:background="@drawable/badge_humidity_bg"
+                android:drawableStart="@drawable/ic_weather_humidity"
+                android:drawablePadding="5dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular"
+                android:singleLine="true"
+                android:visibility="gone" />
+
+            <!-- 3-Day Weather Forecast Container (Bottom Left, Vertical Stack) -->
+            <LinearLayout
+                android:id="@+id/weatherForecastContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentBottom="true"
+                android:layout_toStartOf="@id/weatherHumidityPill"
+                android:layout_marginEnd="8dp"
+                android:orientation="horizontal"
+                android:gravity="bottom"
+                android:visibility="gone">
+
+                <!-- Day 1 Forecast -->
+                <LinearLayout
+                    android:id="@+id/forecastDay1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:layout_marginEnd="12dp">
+
+                    <TextView
+                        android:id="@+id/forecastDay1Name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="11sp"
+                        android:fontFamily="@string/font_medium" />
+
+                    <ImageView
+                        android:id="@+id/forecastDay1Icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginBottom="2dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/forecastDay1Temp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Day 2 Forecast -->
+                <LinearLayout
+                    android:id="@+id/forecastDay2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:layout_marginEnd="12dp">
+
+                    <TextView
+                        android:id="@+id/forecastDay2Name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="11sp"
+                        android:fontFamily="@string/font_medium" />
+
+                    <ImageView
+                        android:id="@+id/forecastDay2Icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginBottom="2dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/forecastDay2Temp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Day 3 Forecast -->
+                <LinearLayout
+                    android:id="@+id/forecastDay3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <TextView
+                        android:id="@+id/forecastDay3Name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="11sp"
+                        android:fontFamily="@string/font_medium" />
+
+                    <ImageView
+                        android:id="@+id/forecastDay3Icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginBottom="2dp"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/forecastDay3Temp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Sports / Football Widget Container -->
+            <RelativeLayout
+                android:id="@+id/footballContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone">
+
+                <!-- Header: Status Pill (Left) & League/Sport Badge (Right) -->
+                <RelativeLayout
+                    android:id="@+id/footballHeaderContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentTop="true">
+
+                    <LinearLayout
+                        android:id="@+id/footballStatusLayout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:id="@+id/footballLiveDot"
+                            android:layout_width="7dp"
+                            android:layout_height="7dp"
+                            android:background="@drawable/badge_football_live_dot" />
+
+                        <TextView
+                            android:id="@+id/footballStatusBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:textColor="#E4E4E7"
+                            android:textSize="12sp"
+                            android:fontFamily="@string/font_medium"
+                            android:singleLine="true" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/footballLeagueLayout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:id="@+id/footballSportIcon"
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_marginEnd="5dp"
+                            android:src="@drawable/ic_sport_football"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/footballLeagueBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/badge_football_league_bg"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:paddingTop="3dp"
+                            android:paddingBottom="3dp"
+                            android:textColor="#F4F4F5"
+                            android:textSize="11sp"
+                            android:fontFamily="@string/font_medium"
+                            android:singleLine="true" />
+                    </LinearLayout>
+                </RelativeLayout>
+
+                <!-- Center Scoreboard: Home Team vs Away Team -->
+                <LinearLayout
+                    android:id="@+id/footballScoreboardContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <!-- Home Team -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal">
+
+                        <ImageView
+                            android:id="@+id/footballHomeLogo"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:scaleType="fitCenter"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/footballHomeName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:fontFamily="@string/font_medium"
+                            android:singleLine="true"
+                            android:ellipsize="end" />
+                    </LinearLayout>
+
+                    <!-- Score Center Display -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+
+                        <TextView
+                            android:id="@+id/footballScoreText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#FFFFFF"
+                            android:textSize="28sp"
+                            android:fontFamily="@string/font_medium"
+                            android:letterSpacing="0.04" />
+                    </LinearLayout>
+
+                    <!-- Away Team -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal">
+
+                        <ImageView
+                            android:id="@+id/footballAwayLogo"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:scaleType="fitCenter"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/footballAwayName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:fontFamily="@string/font_medium"
+                            android:singleLine="true"
+                            android:ellipsize="end" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Bottom Hint/Caption -->
+                <TextView
+                    android:id="@+id/footballBottomHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentBottom="true"
+                    android:layout_centerHorizontal="true"
+                    android:textColor="#A1A1AA"
+                    android:textSize="11sp"
+                    android:fontFamily="@string/font_regular"
+                    android:singleLine="true" />
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/widgetExtra"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"
+                android:textColor="#99FFFFFF"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular"
+                android:singleLine="true"
+                android:visibility="gone" />
+
+        </RelativeLayout>
+    </FrameLayout>
+</LinearLayout>

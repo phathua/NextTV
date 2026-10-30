@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="14dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Left management actions panel: revealed when content slides right -->
+    <LinearLayout
+        android:id="@+id/leftActionsPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="40dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <TextView
+            android:id="@+id/btnMoveSection"
+            android:layout_width="88dp"
+            android:layout_height="34dp"
+            android:background="@drawable/section_action_btn_bg"
+            android:text="Di chuyển"
+            android:gravity="center"
+            android:textColor="#F2FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="@string/font_medium"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true" />
+
+        <TextView
+            android:id="@+id/btnToggleSection"
+            android:layout_width="88dp"
+            android:layout_height="34dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/section_action_btn_bg"
+            android:text="Ẩn"
+            android:gravity="center"
+            android:textColor="#F2FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="@string/font_medium"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="true" />
+    </LinearLayout>
+
+    <!-- Main Section Content: Slides right (translationX) in management mode -->
+    <LinearLayout
+        android:id="@+id/sectionContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <TextView
+            android:id="@+id/sectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="56dp"
+            android:layout_marginBottom="8dp"
+            android:textColor="#B3FFFFFF"
+            android:textSize="13sp"
+            android:fontFamily="@string/font_medium"
+            android:letterSpacing="0.15"
+            android:textAllCaps="true" />
+
+        <com.next.tv.launcher.HorizontalSectionRecyclerView
+            android:id="@+id/sectionRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingStart="56dp"
+            android:paddingEnd="56dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="12dp"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:requiresFadingEdge="horizontal"
+            android:fadingEdgeLength="48dp"
+            android:descendantFocusability="afterDescendants" />
+
+    </LinearLayout>
+</FrameLayout>

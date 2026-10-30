@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NextTV Widget Batch Feed Response",
+  "type": "object",
+  "required": ["protocolVersion", "fetchedAt", "widgets"],
+  "properties": {
+    "protocolVersion": { "type": "string", "enum": ["1.0"] },
+    "fetchedAt": { "type": "integer" },
+    "widgets": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/definitions/HeroMetricWidget" },
+          { "$ref": "#/definitions/ScoreboardWidget" },
+          { "$ref": "#/definitions/MediaBannerWidget" },
+          { "$ref": "#/definitions/NewsCarouselWidget" }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "HeroMetricWidget": {
+      "type": "object",
+      "required": ["template", "ttl", "headerLeft", "metricValue"],
+      "properties": {
+        "template": { "const": "hero_metric" },
+        "ttl": { "type": "integer", "default": 10800 },
+        "headerLeft": { "type": "string", "maxLength": 30 },
+        "headerRight": { "type": "string", "maxLength": 30 },
+        "metricValue": { "type": "string", "maxLength": 12 },
+        "rawTemp": { "type": "number" },
+        "humidity": { "type": "integer" },
+        "iconCode": { "type": "integer" },
+        "pillText": { "type": "string", "maxLength": 25 },
+        "subItems": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["label", "iconCode", "value"],
+            "properties": {
+              "label": { "type": "string", "maxLength": 10 },
+              "iconCode": { "type": "integer" },
+              "value": { "type": "string", "maxLength": 10 },
+              "minTemp": { "type": "integer" },
+              "maxTemp": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "ScoreboardWidget": {
+      "type": "object",
+      "required": ["template", "ttl", "sportType", "items"],
+      "properties": {
+        "template": { "const": "scoreboard" },
+        "ttl": { "type": "integer", "default": 60 },
+        "sportType": { "type": "string" },
+        "items": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "required": ["id", "league", "homeName", "awayName", "homeScore", "awayScore", "statusText", "isLive"],
+            "properties": {
+              "id": { "type": "string" },
+              "sportType": { "type": "string" },
+              "league": { "type": "string", "maxLength": 25 },
+              "homeName": { "type": "string", "maxLength": 20 },
+              "homeShort": { "type": "string", "maxLength": 8 },
+              "homeLogo": { "type": "string" },
+              "homeScore": { "type": "string", "maxLength": 10 },
+              "awayName": { "type": "string", "maxLength": 20 },
+              "awayShort": { "type": "string", "maxLength": 8 },
+              "awayLogo": { "type": "string" },
+              "awayScore": { "type": "string", "maxLength": 10 },
+              "statusState": { "type": "string", "enum": ["in", "pre", "post"] },
+              "statusText": { "type": "string", "maxLength": 20 },
+              "isLive": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "MediaBannerWidget": {
+      "type": "object",
+      "required": ["template", "ttl", "items"],
+      "properties": {
+        "template": { "const": "media_banner" },
+        "ttl": { "type": "integer", "default": 21600 },
+        "items": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "channelTitle", "thumbnailUrl"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string", "maxLength": 120 },
+              "channelTitle": { "type": "string", "maxLength": 60 },
+              "viewCountText": { "type": "string", "maxLength": 20 },
+              "durationText": { "type": "string", "maxLength": 15 },
+              "thumbnailUrl": { "type": "string" },
+              "categoryLabel": { "type": "string", "maxLength": 20 }
+            }
+          }
+        }
+      }
+    },
+    "NewsCarouselWidget": {
+      "type": "object",
+      "required": ["template", "ttl", "items"],
+      "properties": {
+        "template": { "const": "news_carousel" },
+        "ttl": { "type": "integer", "default": 21600 },
+        "items": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["title", "link", "source"],
+            "properties": {
+              "title": { "type": "string", "maxLength": 160 },
+              "link": { "type": "string" },
+              "imageUrl": { "type": "string" },
+              "pubDate": { "type": "string" },
+              "source": { "type": "string", "maxLength": 20 },
+              "category": { "type": "string", "maxLength": 20 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

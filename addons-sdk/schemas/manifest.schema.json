@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NextTV Widget Manifest Schema",
+  "type": "object",
+  "required": ["id", "name", "version", "template", "endpoint"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_-]+)+$",
+      "description": "Định danh gói duy nhất dạng reverse domain (vd: com.example.widget.crypto)"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 30,
+      "description": "Tên tiện ích hiển thị trong menu quản lý"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Phiên bản ngữ nghĩa SemVer (vd: 1.0.0)"
+    },
+    "template": {
+      "type": "string",
+      "enum": ["hero_metric", "scoreboard", "media_banner", "news_carousel"],
+      "description": "Mẫu giao diện thẻ Apple tvOS áp dụng"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Mô tả ngắn gọn chức năng của widget"
+    },
+    "refreshIntervalSec": {
+      "type": "integer",
+      "minimum": 30,
+      "default": 3600,
+      "description": "Chu kỳ làm mới dữ liệu tối thiểu tính bằng giây"
+    },
+    "endpoint": {
+      "type": "string",
+      "format": "uri",
+      "description": "Đường dẫn HTTPS trả về JSON dữ liệu thẻ"
+    },
+    "defaultEnabled": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

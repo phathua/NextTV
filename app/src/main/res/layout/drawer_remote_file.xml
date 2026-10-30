@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/remoteFileRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#B309090B"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:focusable="false"
+    android:clickable="true">
+
+    <!-- Left Area Container (Occupies full space to the left of the 380dp sidebar) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="380dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:focusable="false"
+        android:clickable="false">
+
+        <LinearLayout
+            android:id="@+id/cardFileQrFloat"
+            android:layout_width="340dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_floating_qr_card"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="28dp"
+            android:elevation="12dp"
+            android:visibility="gone"
+            android:focusable="false"
+            android:clickable="true">
+
+            <ImageView
+                android:id="@+id/imgFileQrFloat"
+                android:layout_width="220dp"
+                android:layout_height="220dp"
+                android:background="@drawable/bg_qr_white"
+                android:padding="8dp"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/txtFileUrlFloat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:textColor="#10B981"
+                android:textSize="16sp"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/txtFileNoteFloat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Quét cùng Wi-Fi"
+                android:textColor="#A1A1AA"
+                android:textSize="13sp"
+                android:fontFamily="@string/font_regular" />
+
+            <TextView
+                android:id="@+id/txtUploadNoticeFloat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Sẵn sàng nhận tệp"
+                android:textColor="#10B981"
+                android:textSize="13sp"
+                android:visibility="gone"
+                android:fontFamily="@string/font_medium" />
+        </LinearLayout>
+
+        <!-- Floating Storage Details Breakdown (Flat card background matching sidebar, no border) -->
+        <LinearLayout
+            android:id="@+id/cardStorageBreakdownFloat"
+            android:layout_width="440dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_flat_breakdown_card"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="26dp"
+            android:elevation="10dp"
+            android:visibility="gone"
+            android:focusable="false"
+            android:clickable="false">
+
+            <!-- Custom Donut Chart View -->
+            <com.next.tv.launcher.clean.StorageDonutChartView
+                android:id="@+id/storageDonutChart"
+                android:layout_width="210dp"
+                android:layout_height="210dp"
+                android:layout_marginBottom="22dp" />
+
+            <!-- Stats Table with Duotone SVG Icons & Category Colors -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
+
+                <!-- Row 1: APKs -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_clean_apk"
+                        android:contentDescription="@null" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="Tệp APK cài đặt thừa"
+                        android:textColor="#E4E4E7"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_regular" />
+                    <TextView
+                        android:id="@+id/txtBreakdownApk"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 B (0 tệp)"
+                        android:textColor="#F59E0B"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Row 2: Logs & Temp -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_clean_log"
+                        android:contentDescription="@null" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="Nhật ký &amp; tệp tạm (.log, .tmp)"
+                        android:textColor="#E4E4E7"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_regular" />
+                    <TextView
+                        android:id="@+id/txtBreakdownLog"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 B (0 tệp)"
+                        android:textColor="#38BDF8"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Row 3: Thumbnails -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_clean_thumb"
+                        android:contentDescription="@null" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="Bộ nhớ đệm ảnh (.thumbnails)"
+                        android:textColor="#E4E4E7"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_regular" />
+                    <TextView
+                        android:id="@+id/txtBreakdownThumb"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 B (0 mục)"
+                        android:textColor="#10B981"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Row 4: Orphaned app data -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_clean_corpse"
+                        android:contentDescription="@null" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="Ứng dụng đã gỡ (mồ côi)"
+                        android:textColor="#E4E4E7"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_regular" />
+                    <TextView
+                        android:id="@+id/txtBreakdownCorpse"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 B (0 thư mục)"
+                        android:textColor="#F43F5E"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Right Drawer Content -->
+    <LinearLayout
+        android:id="@+id/remoteFileContent"
+        android:layout_width="380dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#F8121318"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="36dp"
+        android:paddingBottom="24dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:focusable="false"
+        android:clickable="true"
+        android:descendantFocusability="afterDescendants">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="QUẢN LÝ TỆP"
+            android:textColor="#FFFFFFFF"
+            android:textSize="18sp"
+            android:letterSpacing="0.08"
+            android:fontFamily="@string/font_medium" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="20dp"
+            android:scrollbars="none"
+            android:overScrollMode="never"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="false">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:focusable="false">
+
+                <!-- Section 1: System Permission (Auto-hidden when granted) -->
+                <TextView
+                    android:id="@+id/headerPermStorage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="QUYỀN HỆ THỐNG"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <LinearLayout
+                    android:id="@+id/rowPermStorage"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_perm_storage"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Quyền truy cập tệp"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <TextView
+                        android:id="@+id/txtBadgeStorage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cấp quyền"
+                        android:textColor="#FFB340"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Section 2: Storage Tools & Cleaning -->
+                <TextView
+                    android:id="@+id/headerCleanStorage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="CÔNG CỤ BỘ NHỚ"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <LinearLayout
+                    android:id="@+id/rowCleanStorage"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_clean_ram"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Dọn rác bộ nhớ TV"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium" />
+
+                        <TextView
+                            android:id="@+id/txtCleanSubtitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Quét tệp rác, APK thừa"
+                            android:textColor="#80FFFFFF"
+                            android:textSize="12sp"
+                            android:fontFamily="@string/font_regular" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/txtBadgeClean"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Dọn dẹp"
+                        android:textColor="#10B981"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+                <!-- Section 3: File Server / Wi-Fi Transfer -->
+                <TextView
+                    android:id="@+id/headerFileServer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="QUẢN LÝ TỆP QUA WI-FI"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <LinearLayout
+                    android:id="@+id/rowFileServerToggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_file_transfer"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Quản lý tệp qua Wi-Fi"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <Switch
+                        android:id="@+id/switchFileServer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Section 4: Data Protection (Dimmed when Wi-Fi transfer is OFF) -->
+                <TextView
+                    android:id="@+id/headerProtection"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="BẢO VỆ DỮ LIỆU"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:fontFamily="@string/font_medium" />
+
+                <!-- Password protection switch -->
+                <LinearLayout
+                    android:id="@+id/rowPasswordToggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_password_lock"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Mật khẩu bảo vệ"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="14sp"
+                        android:fontFamily="@string/font_regular" />
+
+                    <Switch
+                        android:id="@+id/switchPassword"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+                </LinearLayout>
+
+                <!-- Set / Change PIN Row -->
+                <LinearLayout
+                    android:id="@+id/rowChangePin"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/drawer_item_bg"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:clickable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_key_number"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Đặt mã PIN"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="14sp"
+                            android:fontFamily="@string/font_medium" />
+
+                        <TextView
+                            android:id="@+id/txtPinStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Chưa đặt mã"
+                            android:textColor="#80FFFFFF"
+                            android:textSize="12sp"
+                            android:fontFamily="@string/font_regular" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/txtBadgeChangePin"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thiết lập"
+                        android:textColor="#10B981"
+                        android:textSize="13sp"
+                        android:fontFamily="@string/font_medium" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>
