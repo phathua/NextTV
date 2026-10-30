@@ -320,7 +320,7 @@ public final class KidModeControlDrawer {
                 baseUrl = null;
             }
             if (baseUrl == null || baseUrl.isEmpty()) {
-                baseUrl = "https://nexttv.vixlab.workers.dev";
+                baseUrl = "https://api.example.com";
             }
             String url = baseUrl + "/remote/stream?device=" + ip;
             if (txtKidMonitoringUrlFloat != null) txtKidMonitoringUrlFloat.setText(url);

@@ -633,9 +633,6 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
                 else if (type == TYPE_USAGE) configManager.setUsageEnabled(false);
                 else if (type == TYPE_MEDIA) configManager.setMediaEnabled(false);
                 else if (type == TYPE_FOOTBALL) configManager.setFootballEnabled(false);
-                else if (type == TYPE_GOLD) configManager.setGoldEnabled(false);
-                else if (type == TYPE_CRYPTO) configManager.setCryptoEnabled(false);
-                else if (type == TYPE_VIETNAM_CALENDAR) configManager.setCalendarEnabled(false);
                 else {
                     String addonId = WidgetAddonManager.getInstance(context).getIdForWidgetType(type);
                     if (addonId != null) WidgetAddonManager.getInstance(context).toggleAddon(addonId, false);

@@ -604,12 +604,10 @@ public final class AdvancedSettingsDrawer {
                 if (movingWidgetIndex == index) {
                     movingWidgetIndex = -1;
                     addonMgr.saveOrderFromList(list);
-                    notifyWidgetsChanged();
                     refreshWidgetReorderList();
                 } else if (movingWidgetIndex != -1) {
                     movingWidgetIndex = -1;
                     addonMgr.saveOrderFromList(list);
-                    notifyWidgetsChanged();
                     refreshWidgetReorderList();
                 } else {
                     movingWidgetIndex = index;
@@ -620,7 +618,6 @@ public final class AdvancedSettingsDrawer {
             row.setOnLongClickListener(v -> {
                 boolean newState = !addon.isEnabled();
                 addonMgr.toggleAddon(addon.getId(), newState);
-                notifyWidgetsChanged();
                 refreshWidgetReorderList();
                 Toast.makeText(activity, (newState ? "Đã bật: " : "Đã tắt: ") + addon.getName(), Toast.LENGTH_SHORT).show();
                 return true;
@@ -641,7 +638,6 @@ public final class AdvancedSettingsDrawer {
                         if (index > 0) {
                             addonMgr.moveAddonOrder(index, index - 1);
                             movingWidgetIndex = index - 1;
-                            notifyWidgetsChanged();
                             refreshWidgetReorderList();
                         }
                         return true;
@@ -650,7 +646,6 @@ public final class AdvancedSettingsDrawer {
                         if (index < list.size() - 1) {
                             addonMgr.moveAddonOrder(index, index + 1);
                             movingWidgetIndex = index + 1;
-                            notifyWidgetsChanged();
                             refreshWidgetReorderList();
                         }
                         return true;
@@ -696,7 +691,9 @@ public final class AdvancedSettingsDrawer {
 
         WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
         addonMgr.fetchStoreCatalog((catalog, success) -> {
-            containerSubPanelItems.removeView(tvLoading);
+            while (containerSubPanelItems.getChildCount() > 1) {
+                containerSubPanelItems.removeViewAt(1);
+            }
             if (!success || catalog == null || catalog.isEmpty()) {
                 catalog = addonMgr.buildDefaultStoreCatalog();
             }
@@ -747,7 +744,6 @@ public final class AdvancedSettingsDrawer {
                     if (isInst) {
                         if (!addon.isBuiltIn()) {
                             addonMgr.uninstallAddon(addon.getId());
-                            notifyWidgetsChanged();
                             openWidgetStoreScreen();
                             Toast.makeText(activity, "Đã gỡ tiện ích: " + addon.getName(), Toast.LENGTH_SHORT).show();
                         } else {
@@ -755,7 +751,6 @@ public final class AdvancedSettingsDrawer {
                         }
                     } else {
                         addonMgr.installFromStore(addon, (ok, msg, a) -> {
-                            notifyWidgetsChanged();
                             openWidgetStoreScreen();
                             Toast.makeText(activity, "Đã cài đặt: " + addon.getName(), Toast.LENGTH_SHORT).show();
                         });
@@ -808,10 +803,9 @@ public final class AdvancedSettingsDrawer {
         // Start config server
         stopConfigServer();
         addonConfigServer = new AddonConfigServer(activity);
-        String sessionToken = String.format(java.util.Locale.US, "%06d", new java.util.Random().nextInt(900000) + 100000);
+        String sessionToken = String.format(java.util.Locale.US, "%06d", new java.security.SecureRandom().nextInt(900000) + 100000);
         addonConfigServer.setSessionToken(sessionToken);
         addonConfigServer.setEventListener(action -> {
-            notifyWidgetsChanged();
             Toast.makeText(activity, "Điện thoại đã cập nhật tiện ích", Toast.LENGTH_SHORT).show();
         });
         addonConfigServer.startSafe();
@@ -896,7 +890,6 @@ public final class AdvancedSettingsDrawer {
                         Toast.makeText(activity, "Đang tải cấu hình tiện ích...", Toast.LENGTH_SHORT).show();
                         WidgetAddonManager.getInstance(activity).installFromUrl(url, (success, msg, addon) -> {
                             if (success) {
-                                notifyWidgetsChanged();
                                 Toast.makeText(activity, "Cài đặt thành công: " + (addon != null ? addon.getName() : ""), Toast.LENGTH_SHORT).show();
                             } else {
                                 Toast.makeText(activity, "Cài đặt thất bại: " + msg, Toast.LENGTH_LONG).show();

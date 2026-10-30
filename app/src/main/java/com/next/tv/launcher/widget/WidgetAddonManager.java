@@ -62,7 +62,6 @@ public final class WidgetAddonManager {
     private final List<OnAddonsChangedListener> listeners = new CopyOnWriteArrayList<>();
     private List<WidgetAddon> cachedInstalledAddons = null;
     private final Map<Integer, WidgetAddon> cachedTypeToAddonMap = new HashMap<>();
-    private final Map<String, Integer> cachedIdToTypeMap = new HashMap<>();
 
     public static WidgetAddonManager getInstance(Context context) {
         if (instance == null) {
@@ -172,11 +171,9 @@ public final class WidgetAddonManager {
     private void rebuildCacheLocked(List<WidgetAddon> list) {
         cachedInstalledAddons = new ArrayList<>(list);
         cachedTypeToAddonMap.clear();
-        cachedIdToTypeMap.clear();
         for (WidgetAddon a : cachedInstalledAddons) {
             int type = getWidgetTypeForId(a.getId());
             cachedTypeToAddonMap.put(type, a);
-            cachedIdToTypeMap.put(a.getId(), type);
         }
     }
 
@@ -426,7 +423,7 @@ public final class WidgetAddonManager {
                 baseUrl = null;
             }
             if (baseUrl == null || baseUrl.isEmpty()) {
-                baseUrl = "https://nexttv.vixlab.workers.dev";
+                baseUrl = "https://api.example.com";
             }
             String url = baseUrl + "/api/v1/addons/store";
             String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(url, 0, "manifest");
@@ -507,6 +504,10 @@ public final class WidgetAddonManager {
                         if (callback != null) callback.onInstallResult(false, "Tệp cấu hình thiếu mã định danh hoặc tên tiện ích", null);
                     });
                     return;
+                }
+
+                if (!obj.has("manifestUrl") || obj.optString("manifestUrl", "").isEmpty()) {
+                    obj.put("manifestUrl", cleanUrl);
                 }
 
                 WidgetAddon addon = WidgetAddon.fromJson(obj);

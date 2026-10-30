@@ -45,10 +45,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
         void onUtilityFocused(View cardView);
     }
 
-    public interface OnKidModeToggledListener {
-        void onKidModeToggled(boolean isActive);
-    }
-
     public interface OnKidModeRequestedListener {
         void onKidModeRequested(View triggerView);
     }

@@ -121,7 +121,7 @@ public final class WidgetProtocolEngine {
             baseUrl = null;
         }
         if (baseUrl == null || baseUrl.isEmpty()) {
-            baseUrl = "https://nexttv.vixlab.workers.dev";
+            baseUrl = "https://api.example.com";
         }
 
         String sport = (sportType != null && !sportType.isEmpty()) ? sportType : "soccer";
@@ -206,8 +206,8 @@ public final class WidgetProtocolEngine {
                     } catch (Exception ignored) {}
                 }
 
-                // Fetch data without signing
-                String res = safeHttpGet(targetUrl, 0, null);
+                // Fetch data without signing, with 3.5s timeout for external addons
+                String res = safeHttpGet(targetUrl, 0, null, 3500);
                 if (res != null && !res.trim().isEmpty()) {
                     try {
                         JSONObject customObj = new JSONObject(res);
@@ -223,16 +223,71 @@ public final class WidgetProtocolEngine {
     }
 
     /**
+     * Checks if an IP address belongs to loopback, private, link-local, carrier-grade NAT, or IPv6 ULA.
+     */
+    public static boolean isPrivateOrLocalAddress(InetAddress addr) {
+        if (addr == null) return true;
+        if (addr.isLoopbackAddress() || addr.isSiteLocalAddress()
+                || addr.isLinkLocalAddress() || addr.isAnyLocalAddress()) {
+            return true;
+        }
+        byte[] b = addr.getAddress();
+        if (b == null) return true;
+        if (b.length == 4) {
+            int b0 = b[0] & 0xFF;
+            int b1 = b[1] & 0xFF;
+            // 0.0.0.0/8
+            if (b0 == 0) return true;
+            // 10.0.0.0/8
+            if (b0 == 10) return true;
+            // 127.0.0.0/8
+            if (b0 == 127) return true;
+            // 100.64.0.0/10 (Carrier Grade NAT)
+            if (b0 == 100 && (b1 >= 64 && b1 <= 127)) return true;
+            // 172.16.0.0/12
+            if (b0 == 172 && (b1 >= 16 && b1 <= 31)) return true;
+            // 192.168.0.0/16
+            if (b0 == 192 && b1 == 168) return true;
+            // 169.254.0.0/16
+            if (b0 == 169 && b1 == 254) return true;
+        } else if (b.length == 16) {
+            // IPv6 Unique Local Address (ULA) fc00::/7 (fc00... - fdff...)
+            if ((b[0] & 0xFE) == (byte) 0xFC) return true;
+            // IPv4-mapped IPv6 ::ffff:a.b.c.d
+            boolean isMapped = true;
+            for (int i = 0; i < 10; i++) {
+                if (b[i] != 0) { isMapped = false; break; }
+            }
+            if (isMapped && (b[10] & 0xFF) == 0xFF && (b[11] & 0xFF) == 0xFF) {
+                try {
+                    byte[] ipv4 = new byte[] { b[12], b[13], b[14], b[15] };
+                    return isPrivateOrLocalAddress(InetAddress.getByAddress(ipv4));
+                } catch (Exception ignored) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Safe HTTP GET with SSRF filtering, redirect validation, and 256 KB response cap.
      */
     public String safeHttpGet(String urlStr, int hopCount) {
-        return safeHttpGet(urlStr, hopCount, "widgets_batch");
+        return safeHttpGet(urlStr, hopCount, "widgets_batch", TIMEOUT_MS);
     }
 
     /**
      * Safe HTTP GET with SSRF filtering, redirect validation, configurable HMAC signing, and 256 KB response cap.
      */
     public String safeHttpGet(String urlStr, int hopCount, String signAction) {
+        return safeHttpGet(urlStr, hopCount, signAction, TIMEOUT_MS);
+    }
+
+    /**
+     * Safe HTTP GET with SSRF filtering, redirect validation, configurable HMAC signing, custom timeout, and 256 KB response cap.
+     */
+    public String safeHttpGet(String urlStr, int hopCount, String signAction, int timeoutMs) {
         if (hopCount > MAX_REDIRECT_HOPS) {
             Log.w(TAG, "Exceeded maximum redirect hops: " + urlStr);
             return null;
@@ -248,18 +303,24 @@ public final class WidgetProtocolEngine {
                 return null;
             }
 
-            // 2. Resolve IP on background thread and block private/loopback/link-local ranges
-            InetAddress addr = InetAddress.getByName(url.getHost());
-            if (addr.isLoopbackAddress() || addr.isSiteLocalAddress()
-                    || addr.isLinkLocalAddress() || addr.isAnyLocalAddress()) {
-                Log.w(TAG, "SSRF Blocked: Host resolves to internal IP: " + addr.getHostAddress());
+            // 2. Resolve IP on background thread and block private/loopback/link-local ranges (all resolved IPs)
+            InetAddress[] addrs = InetAddress.getAllByName(url.getHost());
+            if (addrs == null || addrs.length == 0) {
+                Log.w(TAG, "SSRF Blocked: Host could not be resolved");
                 return null;
+            }
+            for (InetAddress a : addrs) {
+                if (isPrivateOrLocalAddress(a)) {
+                    Log.w(TAG, "SSRF Blocked: Host resolves to internal IP: " + a.getHostAddress());
+                    return null;
+                }
             }
 
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(TIMEOUT_MS);
-            conn.setReadTimeout(TIMEOUT_MS);
+            int effectiveTimeout = timeoutMs > 0 ? timeoutMs : TIMEOUT_MS;
+            conn.setConnectTimeout(effectiveTimeout);
+            conn.setReadTimeout(effectiveTimeout);
             conn.setInstanceFollowRedirects(false); // Disable auto-redirect to inspect Location
             conn.setRequestProperty("User-Agent", "NextTV-Launcher/1.0");
             conn.setRequestProperty("Accept", "application/json");
@@ -288,7 +349,7 @@ public final class WidgetProtocolEngine {
                     if (location.startsWith("/")) {
                         location = url.getProtocol() + "://" + url.getHost() + location;
                     }
-                    return safeHttpGet(location, hopCount + 1, signAction);
+                    return safeHttpGet(location, hopCount + 1, signAction, timeoutMs);
                 }
                 return null;
             }

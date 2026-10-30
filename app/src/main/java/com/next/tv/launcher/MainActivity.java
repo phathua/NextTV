@@ -233,6 +233,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private AdvancedSettingsDrawer advancedSettingsDrawer;
     private com.next.tv.launcher.clean.MemoryCleanerDrawer memoryCleanerDrawer;
     private WallpaperPickerDrawer wallpaperPickerDrawer;
+    private com.next.tv.launcher.widget.WidgetAddonManager.OnAddonsChangedListener widgetAddonListener;
     private int currentUserMode = -1;
     public static boolean isResumed = false;
     public static MainActivity activeInstance = null;
@@ -1550,6 +1551,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (activeInstance == this) {
             activeInstance = null;
+        }
+        if (widgetAddonListener != null) {
+            com.next.tv.launcher.widget.WidgetAddonManager.getInstance(this).removeListener(widgetAddonListener);
+            widgetAddonListener = null;
         }
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
@@ -3214,12 +3219,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         widgetAdapter.setUsageData(usageTracker.getTodayUsage());
         widgetAdapter.setMediaData(mediaTracker.getPlaybackInfo());
 
-        com.next.tv.launcher.widget.WidgetAddonManager.getInstance(this).addListener(() -> {
-            if (widgetAdapter != null) {
-                widgetAdapter.rebuildActiveTypes();
-                refreshWidgetsBackground();
-            }
-        });
+        if (widgetAddonListener == null) {
+            widgetAddonListener = () -> {
+                if (widgetAdapter != null) {
+                    widgetAdapter.rebuildActiveTypes();
+                    refreshWidgetsBackground();
+                }
+            };
+            com.next.tv.launcher.widget.WidgetAddonManager.getInstance(this).addListener(widgetAddonListener);
+        }
 
         refreshWidgetsBackground();
     }
@@ -3654,7 +3662,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         if (mode == com.next.tv.launcher.onboarding.OnboardingDialog.MODE_SUPER_LIGHT) {
             WidgetConfigManager.getInstance(this).disableAllWidgets();
-            if (widgetAdapter != null) widgetAdapter.rebuildActiveTypes();
             if (widgetRecyclerView != null) widgetRecyclerView.setVisibility(View.GONE);
             if (widgetSectionTitle != null) widgetSectionTitle.setVisibility(View.GONE);
             if (sectionConfig != null) {
@@ -3681,7 +3688,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         } else if (mode == com.next.tv.launcher.onboarding.OnboardingDialog.MODE_BALANCED) {
             WidgetConfigManager.getInstance(this).enableEssentialWidgetsOnly();
-            if (widgetAdapter != null) widgetAdapter.rebuildActiveTypes();
             if (widgetRecyclerView != null) widgetRecyclerView.setVisibility(View.VISIBLE);
             if (sectionConfig != null) {
                 sectionConfig.setSectionEnabled(SectionConfig.SECTION_CONTINUE_WATCHING, true);
@@ -3702,7 +3708,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             loadRecommendations();
         } else { // MODE_FULL
             WidgetConfigManager.getInstance(this).enableAllWidgets();
-            if (widgetAdapter != null) widgetAdapter.rebuildActiveTypes();
             if (widgetRecyclerView != null) widgetRecyclerView.setVisibility(View.VISIBLE);
             if (sectionConfig != null) {
                 sectionConfig.setSectionEnabled(SectionConfig.SECTION_CONTINUE_WATCHING, true);

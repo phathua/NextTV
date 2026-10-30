@@ -73,18 +73,6 @@ public final class WidgetConfigManager {
         addonManager.toggleAddon(WidgetAddonManager.ID_SPORTS, enabled);
     }
 
-    public void setGoldEnabled(boolean enabled) {
-        addonManager.toggleAddon(WidgetAddonManager.ID_GOLD, enabled);
-    }
-
-    public void setCryptoEnabled(boolean enabled) {
-        addonManager.toggleAddon(WidgetAddonManager.ID_CRYPTO, enabled);
-    }
-
-    public void setCalendarEnabled(boolean enabled) {
-        addonManager.toggleAddon(WidgetAddonManager.ID_VIETNAM_CALENDAR, enabled);
-    }
-
     public void disableAllWidgets() {
         addonManager.setAddonsEnabledBatch(a -> false);
     }

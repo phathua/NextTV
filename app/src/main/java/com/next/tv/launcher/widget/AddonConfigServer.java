@@ -175,7 +175,14 @@ public final class AddonConfigServer extends NanoHTTPD {
 
             } catch (Exception e) {
                 Log.w(TAG, "Error processing POST " + uri + ": " + e.getMessage());
-                return jsonResponse("{\"success\":false,\"error\":\"" + e.getMessage() + "\"}");
+                try {
+                    JSONObject err = new JSONObject();
+                    err.put("success", false);
+                    err.put("error", String.valueOf(e.getMessage()));
+                    return jsonResponse(err.toString());
+                } catch (Exception ignored) {
+                    return jsonResponse("{\"success\":false,\"error\":\"Internal server error\"}");
+                }
             }
         }
 
