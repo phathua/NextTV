@@ -17,7 +17,6 @@ public final class AssistantSpeechSpeaker {
     private final Context appContext;
     private TextToSpeech tts;
     private boolean isInitialized = false;
-    private boolean isVietnameseSupported = false;
 
     public static AssistantSpeechSpeaker getInstance(Context context) {
         if (instance == null) {
@@ -41,11 +40,8 @@ public final class AssistantSpeechSpeaker {
                 if (status == TextToSpeech.SUCCESS && tts != null) {
                     Locale viLocale = new Locale("vi", "VN");
                     int result = tts.setLanguage(viLocale);
-                    if (result == TextToSpeech.LANG_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_AVAILABLE) {
-                        isVietnameseSupported = true;
-                    } else {
+                    if (result != TextToSpeech.LANG_AVAILABLE && result != TextToSpeech.LANG_COUNTRY_AVAILABLE) {
                         int fallbackRes = tts.setLanguage(Locale.US);
-                        isVietnameseSupported = false;
                         Log.d(TAG, "Vietnamese TTS not supported, falling back to US English (status=" + fallbackRes + ")");
                     }
                     tts.setPitch(1.0f);

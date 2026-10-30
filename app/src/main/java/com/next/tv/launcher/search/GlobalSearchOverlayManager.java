@@ -53,6 +53,13 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.ref.WeakReference;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import com.next.tv.launcher.widget.NewsDataManager;
+import com.next.tv.launcher.widget.FootballDataManager;
 import android.widget.FrameLayout;
 import com.next.tv.launcher.search.assistant.AssistantSpeechSpeaker;
 import com.next.tv.launcher.search.assistant.TvAssistantActionExecutor;
@@ -74,13 +81,23 @@ public final class GlobalSearchOverlayManager {
     public static final int FILTER_VIDEOS = 2;
     public static final int FILTER_WEB = 3;
 
+    private static final ExecutorService SEARCH_EXECUTOR = Executors.newFixedThreadPool(4, new ThreadFactory() {
+        private final AtomicInteger count = new AtomicInteger(1);
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "search-worker-" + count.getAndIncrement());
+            t.setPriority(Thread.NORM_PRIORITY - 1);
+            return t;
+        }
+    });
+
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final SharedPreferences prefs;
     private WindowManager windowManager;
     private View overlayView;
     private boolean isShowing = false;
-    private Activity activeActivity;
+    private WeakReference<Activity> activeActivityRef;
 
     private final Runnable autoDismissRunnable = () -> {
         if (isShowing) {
@@ -130,8 +147,8 @@ public final class GlobalSearchOverlayManager {
     private boolean videosLoading = false;
     private boolean webLoading = false;
     private boolean hasFocusedRealResult = false;
-    private View previousBackgroundFocus;
-    private ViewGroup backgroundContainer;
+    private WeakReference<View> previousBackgroundFocusRef;
+    private WeakReference<ViewGroup> backgroundContainerRef;
     private BroadcastReceiver homeKeyReceiver;
 
     // Cached search items
@@ -197,17 +214,24 @@ public final class GlobalSearchOverlayManager {
             }
 
             if (targetContext instanceof Activity) {
-                activeActivity = (Activity) targetContext;
                 Activity act = (Activity) targetContext;
-                previousBackgroundFocus = act.getCurrentFocus();
+                activeActivityRef = new WeakReference<>(act);
+                View prevFocus = act.getCurrentFocus();
+                previousBackgroundFocusRef = (prevFocus != null) ? new WeakReference<>(prevFocus) : null;
                 View bg = act.findViewById(R.id.root);
                 if (bg instanceof ViewGroup) {
-                    backgroundContainer = (ViewGroup) bg;
-                    backgroundContainer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                    ViewGroup bgGroup = (ViewGroup) bg;
+                    backgroundContainerRef = new WeakReference<>(bgGroup);
+                    bgGroup.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+                } else {
+                    backgroundContainerRef = null;
                 }
                 act.addContentView(overlayView, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             } else {
+                activeActivityRef = null;
+                previousBackgroundFocusRef = null;
+                backgroundContainerRef = null;
                 windowManager = (WindowManager) targetContext.getSystemService(Context.WINDOW_SERVICE);
                 WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -841,7 +865,8 @@ public final class GlobalSearchOverlayManager {
     }
 
     public void startVoiceRecognition() {
-        Activity act = (activeActivity != null) ? activeActivity : MainActivity.activeInstance;
+        AssistantSpeechSpeaker.getInstance(context).stop();
+        Activity act = (activeActivityRef != null) ? activeActivityRef.get() : MainActivity.activeInstance;
         if (act != null && act.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             act.requestPermissions(
                 new String[]{Manifest.permission.RECORD_AUDIO}, MainActivity.REQUEST_CODE_AUDIO);
@@ -1071,17 +1096,6 @@ public final class GlobalSearchOverlayManager {
 
                 this.hasFocusedRealResult = false;
 
-        if (processAssistantQuery(currentQuery, autoFocus)) {
-            return;
-        }
-
-        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
-        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
-        if (assistantCardContainer != null) {
-            assistantCardContainer.removeAllViews();
-            assistantCardContainer.setVisibility(View.GONE);
-        }
-
         AppLockManager lockManager = AppLockManager.getInstance(context);
         if (lockManager.isKidModeActive() && isRestrictedQueryInKidMode(currentQuery)) {
             this.moviesLoading = false;
@@ -1093,12 +1107,30 @@ public final class GlobalSearchOverlayManager {
             }
             if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
             if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+            if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+            if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+            if (assistantCardContainer != null) {
+                assistantCardContainer.removeAllViews();
+                assistantCardContainer.setVisibility(View.GONE);
+            }
             if (searchResultHeaderTitle != null) {
                 searchResultHeaderTitle.setText("Nội dung bị giới hạn");
             }
             updateDisplayedItemsImmediately();
             updateBottomActionPills("");
+            AssistantSpeechSpeaker.getInstance(context).speak("Nội dung này bị giới hạn trong chế độ trẻ em.");
             return;
+        }
+
+        if (processAssistantQuery(currentQuery, autoFocus)) {
+            return;
+        }
+
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
         }
 
         this.moviesLoading = true;
@@ -1165,7 +1197,7 @@ public final class GlobalSearchOverlayManager {
     }
 
     private void fetchTmdbMoviesAndSeries(String query, boolean autoFocus) {
-        new Thread(() -> {
+        SEARCH_EXECUTOR.execute(() -> {
             List<SearchResultItem> movieItems = new ArrayList<>();
             float density = context.getResources().getDisplayMetrics().density;
             PackageManager pm = context.getPackageManager();
@@ -1185,12 +1217,13 @@ public final class GlobalSearchOverlayManager {
 
             Drawable preferredIcon = hasNuvio ? nuvioIcon : (hasStremio ? stremioIcon : (hasCloudStream ? csIcon : null));
 
+            HttpURLConnection conn = null;
             try {
                 String encQuery = URLEncoder.encode(query, "UTF-8");
                 String tmdbToken = NativeSecurityBridge.getTmdbTokenSafe(context);
                 String reqUrl = "https://api.themoviedb.org/3/search/multi?query=" + encQuery + "&language=vi-VN&include_adult=false";
                 URL url = new URL(reqUrl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(6000);
                 conn.setReadTimeout(6000);
@@ -1204,8 +1237,11 @@ public final class GlobalSearchOverlayManager {
                     byte[] buf = new byte[8192];
                     StringBuilder sb = new StringBuilder();
                     int read;
-                    while ((read = in.read(buf)) != -1) {
+                    int totalRead = 0;
+                    final int MAX_STREAM_BYTES = 262144; // 256KB cap
+                    while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
                         sb.append(new String(buf, 0, read, "UTF-8"));
+                        totalRead += read;
                     }
                     in.close();
 
@@ -1310,9 +1346,12 @@ public final class GlobalSearchOverlayManager {
                         }
                     }
                 }
-                conn.disconnect();
             } catch (Exception e) {
                 Log.w(TAG, "TMDB search failed: " + e.getMessage());
+            } finally {
+                if (conn != null) {
+                    try { conn.disconnect(); } catch (Exception ignored) {}
+                }
             }
 
             if (movieItems.isEmpty()) {
@@ -1326,19 +1365,20 @@ public final class GlobalSearchOverlayManager {
                 cachedMovies.addAll(movieItems);
                 updateDisplayedItems();
             });
-        }).start();
+        });
     }
 
     private void fetchCinemetaMovies(String query, boolean autoFocus) {
-        new Thread(() -> {
+        SEARCH_EXECUTOR.execute(() -> {
             List<SearchResultItem> movieItems = new ArrayList<>();
             float density = context.getResources().getDisplayMetrics().density;
             Drawable stremioIcon = AppIconCleaner.getCleanAppIcon(context, "com.stremio.one", density);
 
+            HttpURLConnection conn = null;
             try {
                 String encQuery = URLEncoder.encode(query, "UTF-8");
                 URL url = new URL("https://v3-cinemeta.strem.io/catalog/movie/top/search=" + encQuery + ".json");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(6000);
                 conn.setReadTimeout(6000);
@@ -1349,8 +1389,11 @@ public final class GlobalSearchOverlayManager {
                     byte[] buf = new byte[8192];
                     StringBuilder sb = new StringBuilder();
                     int read;
-                    while ((read = in.read(buf)) != -1) {
+                    int totalRead = 0;
+                    final int MAX_STREAM_BYTES = 262144; // 256KB cap
+                    while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
                         sb.append(new String(buf, 0, read, "UTF-8"));
+                        totalRead += read;
                     }
                     in.close();
 
@@ -1395,9 +1438,12 @@ public final class GlobalSearchOverlayManager {
                         }
                     }
                 }
-                conn.disconnect();
             } catch (Exception e) {
                 Log.w(TAG, "Cinemeta fetch failed: " + e.getMessage());
+            } finally {
+                if (conn != null) {
+                    try { conn.disconnect(); } catch (Exception ignored) {}
+                }
             }
 
             mainHandler.post(() -> {
@@ -1406,11 +1452,11 @@ public final class GlobalSearchOverlayManager {
                 cachedMovies.addAll(movieItems);
                 updateDisplayedItems();
             });
-        }).start();
+        });
     }
 
     private void fetchYoutubeVideos(String query, boolean autoFocus) {
-        new Thread(() -> {
+        SEARCH_EXECUTOR.execute(() -> {
             PackageManager pm = context.getPackageManager();
             float density = context.getResources().getDisplayMetrics().density;
 
@@ -1448,7 +1494,7 @@ public final class GlobalSearchOverlayManager {
                 cachedVideos.addAll(finalItems);
                 updateDisplayedItems();
             });
-        }).start();
+        });
     }
 
     private List<SearchResultItem> fetchYoutubeInnertubeVideos(String query, String detectedYtPkg, String ytLabel, Drawable ytIcon) {
@@ -1484,8 +1530,11 @@ public final class GlobalSearchOverlayManager {
                 byte[] buf = new byte[16384];
                 StringBuilder sb = new StringBuilder();
                 int read;
-                while ((read = in.read(buf)) != -1) {
+                int totalRead = 0;
+                final int MAX_STREAM_BYTES = 262144; // 256KB
+                while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
                     sb.append(new String(buf, 0, read, "UTF-8"));
+                    totalRead += read;
                 }
                 in.close();
 
@@ -1613,8 +1662,11 @@ public final class GlobalSearchOverlayManager {
                 byte[] buf = new byte[8192];
                 StringBuilder sb = new StringBuilder();
                 int read;
-                while ((read = in.read(buf)) != -1) {
+                int totalRead = 0;
+                final int MAX_STREAM_BYTES = 262144; // 256KB
+                while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
                     sb.append(new String(buf, 0, read, "UTF-8"));
+                    totalRead += read;
                 }
                 in.close();
 
@@ -1702,7 +1754,8 @@ public final class GlobalSearchOverlayManager {
     }
 
     private void fetchBraveNewsProxy(String query, boolean autoFocus) {
-        new Thread(() -> {
+        SEARCH_EXECUTOR.execute(() -> {
+            HttpURLConnection conn = null;
             try {
                 long now = System.currentTimeMillis();
                 NativeSecurityBridge.RequestAuthHeaders auth =
@@ -1715,7 +1768,7 @@ public final class GlobalSearchOverlayManager {
 
                 String reqUrl = baseUrl + "/v1/search/web?q=" + URLEncoder.encode(query, "UTF-8");
                 URL url = new URL(reqUrl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(8000);
                 conn.setReadTimeout(8000);
@@ -1731,8 +1784,11 @@ public final class GlobalSearchOverlayManager {
                     byte[] buf = new byte[8192];
                     StringBuilder sb = new StringBuilder();
                     int read;
-                    while ((read = in.read(buf)) != -1) {
+                    int totalRead = 0;
+                    final int MAX_STREAM_BYTES = 262144; // 256KB cap
+                    while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
                         sb.append(new String(buf, 0, read, "UTF-8"));
+                        totalRead += read;
                     }
                     in.close();
 
@@ -1807,15 +1863,18 @@ public final class GlobalSearchOverlayManager {
                         updateDisplayedItems();
                     });
                 }
-                conn.disconnect();
             } catch (Exception e) {
                 Log.w(TAG, "Proxy fetch failed: " + e.getMessage());
                 mainHandler.post(() -> {
                     webLoading = false;
                     updateDisplayedItems();
                 });
+            } finally {
+                if (conn != null) {
+                    try { conn.disconnect(); } catch (Exception ignored) {}
+                }
             }
-        }).start();
+        });
     }
 
     private void focusRecycler(RecyclerView rv) {
@@ -1911,13 +1970,19 @@ public final class GlobalSearchOverlayManager {
             searchDismissBackdrop.setBackgroundColor(0x00000000);
         }
 
-        if (backgroundContainer != null) {
-            backgroundContainer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            if (previousBackgroundFocus != null && previousBackgroundFocus.isAttachedToWindow()) {
-                previousBackgroundFocus.requestFocus();
+        if (backgroundContainerRef != null) {
+            ViewGroup bg = backgroundContainerRef.get();
+            if (bg != null) {
+                bg.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             }
-            backgroundContainer = null;
-            previousBackgroundFocus = null;
+            if (previousBackgroundFocusRef != null) {
+                View prev = previousBackgroundFocusRef.get();
+                if (prev != null && prev.isAttachedToWindow()) {
+                    prev.requestFocus();
+                }
+            }
+            backgroundContainerRef = null;
+            previousBackgroundFocusRef = null;
         }
 
         try {
@@ -1952,13 +2017,19 @@ public final class GlobalSearchOverlayManager {
         }
         if (!isShowing) return;
         isShowing = false;
-        if (backgroundContainer != null) {
-            backgroundContainer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            if (previousBackgroundFocus != null && previousBackgroundFocus.isAttachedToWindow()) {
-                previousBackgroundFocus.requestFocus();
+        if (backgroundContainerRef != null) {
+            ViewGroup bg = backgroundContainerRef.get();
+            if (bg != null) {
+                bg.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             }
-            backgroundContainer = null;
-            previousBackgroundFocus = null;
+            if (previousBackgroundFocusRef != null) {
+                View prev = previousBackgroundFocusRef.get();
+                if (prev != null && prev.isAttachedToWindow()) {
+                    prev.requestFocus();
+                }
+            }
+            backgroundContainerRef = null;
+            previousBackgroundFocusRef = null;
         }
         try {
             if (speechRecognizer != null) {
@@ -1991,6 +2062,9 @@ public final class GlobalSearchOverlayManager {
             }
         } catch (Exception ignored) {}
         overlayView = null;
+        activeActivityRef = null;
+        previousBackgroundFocusRef = null;
+        backgroundContainerRef = null;
     }
 
     // -------------------------------------------------------------
@@ -2014,9 +2088,8 @@ public final class GlobalSearchOverlayManager {
 
         // 2. Direct Movie Search on Nuvio / Stremio / CloudStream
         if (intent.type == TvAssistantDispatcher.INTENT_MOVIE_DIRECT_SEARCH) {
-            this.currentQuery = intent.cleanQuery;
-            if (searchBottomQueryText != null) searchBottomQueryText.setText(currentQuery);
-            return false; // Continues to TMDB with cleaned movie query
+            executeMovieDirectAssistantSearch(intent.cleanQuery, intent.targetApp, autoFocus);
+            return true;
         }
 
         // 3. Smart Info Queries requiring Widget Addons (Weather, Gold, News, Sports)
@@ -2038,10 +2111,21 @@ public final class GlobalSearchOverlayManager {
                 showAssistantGoldCard();
                 return true;
             } else if (intent.type == TvAssistantDispatcher.INTENT_NEWS) {
+                List<NewsDataManager.NewsItem> cached = new NewsDataManager(context).getCachedNews();
+                if (cached != null && !cached.isEmpty()) {
+                    displayAssistantNews(cached);
+                    return true;
+                }
                 setFilter(FILTER_WEB);
                 AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là các tin thời sự mới nhất hôm nay.");
                 return false;
             } else if (intent.type == TvAssistantDispatcher.INTENT_SPORTS) {
+                List<FootballDataManager.FootballMatchItem> matches = FootballDataManager.getInstance(context).getCachedMatches();
+                if (matches != null && !matches.isEmpty()) {
+                    displayAssistantSports(matches);
+                    return true;
+                }
+                setFilter(FILTER_WEB);
                 AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là thông tin thể thao cập nhật mới nhất.");
                 return false;
             }
@@ -2075,6 +2159,180 @@ public final class GlobalSearchOverlayManager {
         }
 
         return false;
+    }
+
+    private void executeMovieDirectAssistantSearch(String cleanQuery, String targetApp, boolean autoFocus) {
+        if (cleanQuery == null || cleanQuery.trim().isEmpty()) return;
+        this.currentQuery = cleanQuery.trim();
+        if (searchBottomQueryText != null) searchBottomQueryText.setText(currentQuery);
+        if (voiceListeningPrompt != null) voiceListeningPrompt.setText(currentQuery);
+
+        PackageManager pm = context.getPackageManager();
+        AppLockManager lockManager = AppLockManager.getInstance(context);
+
+        if (targetApp != null) {
+            String pkg = null;
+            Uri uri = null;
+            if ("nuvio".equalsIgnoreCase(targetApp)) {
+                pkg = "com.nuvio.tv";
+                uri = Uri.parse("nuvio:///search?search=" + Uri.encode(cleanQuery));
+            } else if ("stremio".equalsIgnoreCase(targetApp)) {
+                pkg = "com.stremio.one";
+                uri = Uri.parse("stremio:///search?search=" + Uri.encode(cleanQuery));
+            } else if ("cloudstream".equalsIgnoreCase(targetApp)) {
+                pkg = "com.lagradost.cloudstream3";
+                uri = Uri.parse("cloudstream:///search?query=" + Uri.encode(cleanQuery));
+            }
+
+            if (pkg != null) {
+                boolean installed = false;
+                try {
+                    pm.getPackageInfo(pkg, 0);
+                    installed = true;
+                } catch (Exception ignored) {}
+
+                if (installed) {
+                    final Intent directIntent = new Intent(Intent.ACTION_VIEW, uri);
+                    if ("com.nuvio.tv".equals(pkg)) directIntent.setPackage(pkg);
+                    directIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                    if (lockManager.isAppLocked(pkg)) {
+                        Activity act = (activeActivityRef != null) ? activeActivityRef.get() : MainActivity.activeInstance;
+                        Context dialogCtx = act != null ? act : context;
+                        new PinLockDialog(dialogCtx, "Khóa ứng dụng", "Nhập mã để mở " + targetApp, new PinLockDialog.PinResultListener() {
+                            @Override
+                            public void onSuccess() {
+                                try {
+                                    context.startActivity(directIntent);
+                                    dismiss();
+                                } catch (Exception ignored) {}
+                            }
+                            @Override public void onCancel() {}
+                        }).show();
+                        AssistantSpeechSpeaker.getInstance(context).speak("Đang mở tìm kiếm phim trên " + targetApp + ".");
+                        return;
+                    } else {
+                        try {
+                            context.startActivity(directIntent);
+                            dismiss();
+                            AssistantSpeechSpeaker.getInstance(context).speak("Đang mở tìm kiếm phim " + cleanQuery + " trên " + targetApp + ".");
+                            return;
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        }
+
+        // If app not installed or no app specified: filter only movies tab on overlay
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+
+        if (searchResultsBottomPanel != null) {
+            searchResultsBottomPanel.setVisibility(View.VISIBLE);
+            searchResultsBottomPanel.setAlpha(1f);
+            searchResultsBottomPanel.setTranslationY(0f);
+        }
+
+        setFilter(FILTER_MOVIES);
+        updateFilterPillsUI();
+
+        this.moviesLoading = true;
+        this.videosLoading = false;
+        this.webLoading = false;
+        this.hasFocusedRealResult = false;
+
+        clearResults();
+        updateDisplayedItemsImmediately();
+        updateBottomActionPills(currentQuery);
+
+        AssistantSpeechSpeaker.getInstance(context).speak("Đang tìm phim " + currentQuery + ".");
+        fetchTmdbMoviesAndSeries(currentQuery, autoFocus);
+    }
+
+    private void displayAssistantNews(List<NewsDataManager.NewsItem> list) {
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (searchResultsBottomPanel != null) searchResultsBottomPanel.setVisibility(View.VISIBLE);
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
+
+        List<SearchResultItem> items = new ArrayList<>();
+        for (NewsDataManager.NewsItem ni : list) {
+            items.add(new SearchResultItem(
+                SearchResultItem.TYPE_WEB,
+                ni.title,
+                ni.source + " • " + NewsDataManager.formatTimeAgo(ni.pubDate),
+                ni.category,
+                null,
+                ni.imageUrl,
+                null,
+                () -> showReaderDialog(ni.title, ni.source + " - " + ni.category, ni.link)
+            ));
+        }
+
+        clearResults();
+        cachedNews.addAll(items);
+        setFilter(FILTER_WEB);
+        this.moviesLoading = false;
+        this.videosLoading = false;
+        this.webLoading = false;
+        this.hasFocusedRealResult = false;
+        updateDisplayedItemsImmediately();
+        updateBottomActionPills("");
+        AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là các tin thời sự mới nhất hôm nay.");
+    }
+
+    private void displayAssistantSports(List<FootballDataManager.FootballMatchItem> list) {
+        if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
+        if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
+        if (searchResultsBottomPanel != null) searchResultsBottomPanel.setVisibility(View.VISIBLE);
+        if (searchCategoryPills != null) searchCategoryPills.setVisibility(View.VISIBLE);
+        if (searchHorizontalRecycler != null) searchHorizontalRecycler.setVisibility(View.VISIBLE);
+        if (assistantCardContainer != null) {
+            assistantCardContainer.removeAllViews();
+            assistantCardContainer.setVisibility(View.GONE);
+        }
+
+        List<SearchResultItem> items = new ArrayList<>();
+        for (FootballDataManager.FootballMatchItem m : list) {
+            String title = m.homeTeamName + " " + (m.homeScore != null ? m.homeScore : "")
+                    + " - " + (m.awayScore != null ? m.awayScore : "") + " " + m.awayTeamName;
+            String subtitle = m.leagueName + " • " + m.statusDetail;
+            String badge = m.isLive ? "Trực tiếp" : ("FT".equalsIgnoreCase(m.statusDetail) ? "Kết thúc" : "Sắp đấu");
+            String iconUrl = m.homeLogoUrl != null && !m.homeLogoUrl.isEmpty() ? m.homeLogoUrl : m.awayLogoUrl;
+
+            items.add(new SearchResultItem(
+                SearchResultItem.TYPE_WEB,
+                title,
+                subtitle,
+                badge,
+                null,
+                iconUrl,
+                null,
+                () -> showReaderDialog(title, subtitle + "\n" + badge, "")
+            ));
+        }
+
+        clearResults();
+        cachedNews.addAll(items);
+        setFilter(FILTER_WEB);
+        this.moviesLoading = false;
+        this.videosLoading = false;
+        this.webLoading = false;
+        this.hasFocusedRealResult = false;
+        updateDisplayedItemsImmediately();
+        updateBottomActionPills("");
+        AssistantSpeechSpeaker.getInstance(context).speak("Dưới đây là thông tin thể thao cập nhật mới nhất.");
     }
 
     private void executeYouTubeVideoAssistantSearch(String cleanQuery, boolean autoFocus) {
@@ -2114,7 +2372,7 @@ public final class GlobalSearchOverlayManager {
         fetchYoutubeVideos(currentQuery, autoFocus);
     }
 
-    private void showAssistantWeatherCard(String cityName) {
+    private void showAssistantWeatherCard(String targetCity) {
         if (overlayView == null) return;
         if (searchListeningContainer != null) searchListeningContainer.setVisibility(View.GONE);
         if (searchBottomScrim != null) searchBottomScrim.setVisibility(View.GONE);
@@ -2135,22 +2393,96 @@ public final class GlobalSearchOverlayManager {
         ImageView ivIcon = assistantCardContainer.findViewById(R.id.weatherCardIcon);
         ViewGroup forecastContainer = assistantCardContainer.findViewById(R.id.weatherCardForecastContainer);
 
+        if (card != null) {
+            card.setOnClickListener(v -> {
+                try {
+                    Intent weatherIntent = new Intent(context, com.next.tv.launcher.weather.WeatherDetailActivity.class);
+                    weatherIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(weatherIntent);
+                    dismiss();
+                } catch (Exception ignored) {}
+            });
+            card.post(() -> card.requestFocus());
+        }
+
         WeatherDataManager wm = new WeatherDataManager(context);
-        WeatherDataManager.WeatherDetailInfo detail = wm.getCachedDetailWeather();
-        String displayCity = cityName != null && !cityName.isEmpty() ? cityName : (detail != null ? detail.city : wm.getSavedCityName());
+        TvAssistantDispatcher.CityCoordinate coord = (targetCity != null && !targetCity.isEmpty())
+                ? TvAssistantDispatcher.getCityCoordinate(targetCity) : null;
 
-        double temp = detail != null ? detail.currentTemp : 26.0;
-        String desc = detail != null ? detail.description : "Trời nắng nhẹ";
-        int humidity = detail != null ? detail.humidity : 65;
-        double wind = detail != null ? detail.windSpeed : 12.0;
-        int weatherCode = detail != null ? detail.weatherCode : 0;
+        if (coord != null) {
+            // Specific city requested
+            if (tvTemp != null) tvTemp.setText("--°C");
+            if (tvCity != null) tvCity.setText(coord.cityName + " • Hôm nay");
+            if (tvDesc != null) tvDesc.setText("Đang tải dữ liệu thời tiết...");
 
-        if (tvTemp != null) tvTemp.setText(Math.round(temp) + "°C");
+            final String requestedCity = coord.cityName;
+            final double lat = coord.lat;
+            final double lon = coord.lon;
+
+            SEARCH_EXECUTOR.execute(() -> {
+                try {
+                    WeatherDataManager.WeatherDetailInfo info = wm.fetchDetailSync(lat, lon, requestedCity);
+                    mainHandler.post(() -> {
+                        if (assistantCardContainer != null && assistantCardContainer.getVisibility() == View.VISIBLE) {
+                            renderWeatherCardData(info, requestedCity, tvTemp, tvCity, tvDesc, ivIcon, forecastContainer);
+                            AssistantSpeechSpeaker.getInstance(context).speak("Thời tiết hôm nay tại " + requestedCity + " " + Math.round(info.currentTemp) + " độ C, " + info.description + ".");
+                        }
+                    });
+                } catch (Exception e) {
+                    mainHandler.post(() -> {
+                        if (tvDesc != null) tvDesc.setText("Không thể lấy dữ liệu thời tiết cho " + requestedCity);
+                        AssistantSpeechSpeaker.getInstance(context).speak("Không thể tải dữ liệu thời tiết cho " + requestedCity + ".");
+                    });
+                }
+            });
+        } else {
+            // Current / default location
+            WeatherDataManager.WeatherDetailInfo detail = wm.getCachedDetailWeather();
+            String displayCity = (detail != null && detail.city != null && !detail.city.isEmpty())
+                    ? detail.city : wm.getSavedCityName();
+
+            if (detail != null) {
+                renderWeatherCardData(detail, displayCity, tvTemp, tvCity, tvDesc, ivIcon, forecastContainer);
+                AssistantSpeechSpeaker.getInstance(context).speak("Thời tiết hôm nay tại " + displayCity + " " + Math.round(detail.currentTemp) + " độ C, " + detail.description + ".");
+            } else {
+                if (tvTemp != null) tvTemp.setText("--°C");
+                if (tvCity != null) tvCity.setText(displayCity + " • Hôm nay");
+                if (tvDesc != null) tvDesc.setText("Đang tải dữ liệu thời tiết...");
+
+                final double lat = wm.getSavedLatitude();
+                final double lon = wm.getSavedLongitude();
+                final String defaultCity = displayCity;
+
+                SEARCH_EXECUTOR.execute(() -> {
+                    try {
+                        WeatherDataManager.WeatherDetailInfo info = wm.fetchDetailSync(lat, lon, defaultCity);
+                        mainHandler.post(() -> {
+                            if (assistantCardContainer != null && assistantCardContainer.getVisibility() == View.VISIBLE) {
+                                renderWeatherCardData(info, defaultCity, tvTemp, tvCity, tvDesc, ivIcon, forecastContainer);
+                                AssistantSpeechSpeaker.getInstance(context).speak("Thời tiết hôm nay tại " + defaultCity + " " + Math.round(info.currentTemp) + " độ C, " + info.description + ".");
+                            }
+                        });
+                    } catch (Exception e) {
+                        mainHandler.post(() -> {
+                            if (tvDesc != null) tvDesc.setText("Không thể lấy dữ liệu thời tiết lúc này");
+                            AssistantSpeechSpeaker.getInstance(context).speak("Không thể tải thông tin thời tiết.");
+                        });
+                    }
+                });
+            }
+        }
+    }
+
+    private void renderWeatherCardData(WeatherDataManager.WeatherDetailInfo detail, String displayCity,
+                                       TextView tvTemp, TextView tvCity, TextView tvDesc,
+                                       ImageView ivIcon, ViewGroup forecastContainer) {
+        if (detail == null) return;
+        if (tvTemp != null) tvTemp.setText(Math.round(detail.currentTemp) + "°C");
         if (tvCity != null) tvCity.setText(displayCity + " • Hôm nay");
-        if (tvDesc != null) tvDesc.setText(desc + " • Độ ẩm " + humidity + "% • Gió " + Math.round(wind) + " km/h");
-        if (ivIcon != null) ivIcon.setImageResource(getAssistantWeatherIconRes(weatherCode));
+        if (tvDesc != null) tvDesc.setText(detail.description + " • Độ ẩm " + detail.humidity + "% • Gió " + Math.round(detail.windSpeed) + " km/h");
+        if (ivIcon != null) ivIcon.setImageResource(getAssistantWeatherIconRes(detail.weatherCode));
 
-        if (forecastContainer != null && detail != null && detail.dailyForecast != null) {
+        if (forecastContainer != null && detail.dailyForecast != null) {
             forecastContainer.removeAllViews();
             float density = context.getResources().getDisplayMetrics().density;
             int count = Math.min(5, detail.dailyForecast.size());
@@ -2190,20 +2522,6 @@ public final class GlobalSearchOverlayManager {
                 forecastContainer.addView(dayCol);
             }
         }
-
-        if (card != null) {
-            card.setOnClickListener(v -> {
-                try {
-                    Intent weatherIntent = new Intent(context, com.next.tv.launcher.weather.WeatherDetailActivity.class);
-                    weatherIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(weatherIntent);
-                    dismiss();
-                } catch (Exception ignored) {}
-            });
-            card.post(() -> card.requestFocus());
-        }
-
-        AssistantSpeechSpeaker.getInstance(context).speak("Thời tiết hôm nay tại " + displayCity + " " + Math.round(temp) + " độ C, " + desc + ".");
     }
 
     private void showAssistantGoldCard() {
@@ -2228,38 +2546,96 @@ public final class GlobalSearchOverlayManager {
         TextView tvWorldPrice = assistantCardContainer.findViewById(R.id.goldWorldPrice);
         TextView tvWorldSub = assistantCardContainer.findViewById(R.id.goldWorldSub);
 
-        double sjcSell = 89.5, sjcBuy = 87.5;
-        double ringSell = 88.2, ringBuy = 86.8;
-        int worldPrice = 2745;
-
-        try {
-            org.json.JSONObject batch = WidgetProtocolEngine.getInstance(context).getCachedBatchJson();
-            if (batch != null && batch.has("gold")) {
-                org.json.JSONObject goldObj = batch.getJSONObject("gold");
-                sjcSell = goldObj.optDouble("rawTemp", 89.5);
-                org.json.JSONArray subs = goldObj.optJSONArray("subItems");
-                if (subs != null && subs.length() >= 2) {
-                    sjcBuy = subs.getJSONObject(0).optDouble("temp", 87.5);
-                    sjcSell = subs.getJSONObject(1).optDouble("temp", sjcSell);
-                    if (subs.length() >= 3) {
-                        worldPrice = subs.getJSONObject(2).optInt("temp", 2745);
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
-        if (tvSjcPrice != null) tvSjcPrice.setText(sjcSell + " tr/lượng");
-        if (tvSjcSub != null) tvSjcSub.setText("Mua: " + sjcBuy + " tr • Bán: " + sjcSell + " tr");
-        if (tvRingPrice != null) tvRingPrice.setText(ringSell + " tr/lượng");
-        if (tvRingSub != null) tvRingSub.setText("Mua: " + ringBuy + " tr • Bán: " + ringSell + " tr");
-        if (tvWorldPrice != null) tvWorldPrice.setText(worldPrice + " USD/oz");
-        if (tvWorldSub != null) tvWorldSub.setText("Biến động: +0.8%");
-
         if (card != null) {
             card.post(() -> card.requestFocus());
         }
 
-        AssistantSpeechSpeaker.getInstance(context).speak("Giá vàng SJC hôm nay mua vào " + sjcBuy + " triệu, bán ra " + sjcSell + " triệu đồng một lượng.");
+        JSONObject cachedBatch = WidgetProtocolEngine.getInstance(context).getCachedBatchJson();
+        JSONObject cachedGold = cachedBatch != null ? cachedBatch.optJSONObject("gold") : null;
+        if (cachedGold != null) {
+            renderGoldCardData(cachedGold, tvSjcPrice, tvSjcSub, tvRingPrice, tvRingSub, tvWorldPrice, tvWorldSub, true);
+        } else {
+            if (tvSjcPrice != null) tvSjcPrice.setText("Đang tải...");
+            if (tvSjcSub != null) tvSjcSub.setText("Đang lấy giá vàng trực tiếp...");
+            if (tvRingPrice != null) tvRingPrice.setText("Đang tải...");
+            if (tvRingSub != null) tvRingSub.setText("Đang lấy giá vàng nhẫn...");
+            if (tvWorldPrice != null) tvWorldPrice.setText("Đang tải...");
+            if (tvWorldSub != null) tvWorldSub.setText("Đang cập nhật sàn thế giới...");
+        }
+
+        SEARCH_EXECUTOR.execute(() -> {
+            JSONObject freshWidgets = WidgetProtocolEngine.getInstance(context).fetchBatchSync(null);
+            JSONObject freshGold = freshWidgets != null ? freshWidgets.optJSONObject("gold") : null;
+            if (freshGold != null) {
+                mainHandler.post(() -> {
+                    if (assistantCardContainer != null && assistantCardContainer.getVisibility() == View.VISIBLE) {
+                        renderGoldCardData(freshGold, tvSjcPrice, tvSjcSub, tvRingPrice, tvRingSub, tvWorldPrice, tvWorldSub, cachedGold == null);
+                    }
+                });
+            } else if (cachedGold == null) {
+                mainHandler.post(() -> {
+                    if (tvSjcSub != null) tvSjcSub.setText("Không thể lấy dữ liệu giá vàng lúc này");
+                    AssistantSpeechSpeaker.getInstance(context).speak("Không thể tải thông tin giá vàng vào lúc này.");
+                });
+            }
+        });
+    }
+
+    private void renderGoldCardData(JSONObject goldObj, TextView tvSjcPrice, TextView tvSjcSub,
+                                    TextView tvRingPrice, TextView tvRingSub,
+                                    TextView tvWorldPrice, TextView tvWorldSub,
+                                    boolean shouldSpeak) {
+        double sjcSell = goldObj.optDouble("rawTemp", 0.0);
+        double sjcBuy = 0.0;
+        double ringSell = 0.0;
+        double ringBuy = 0.0;
+        int worldPrice = 0;
+
+        JSONArray subs = goldObj.optJSONArray("subItems");
+        if (subs != null) {
+            for (int i = 0; i < subs.length(); i++) {
+                JSONObject sub = subs.optJSONObject(i);
+                if (sub == null) continue;
+                String title = sub.optString("title", "");
+                double temp = sub.optDouble("temp", 0.0);
+                if (title.contains("SJC Mua")) {
+                    sjcBuy = temp;
+                } else if (title.contains("SJC Bán")) {
+                    sjcSell = temp;
+                } else if (title.contains("Nhẫn") && title.contains("Mua")) {
+                    ringBuy = temp;
+                } else if (title.contains("Nhẫn") && title.contains("Bán")) {
+                    ringSell = temp;
+                } else if (title.contains("Thế Giới") || title.contains("World")) {
+                    worldPrice = (int) Math.round(temp);
+                }
+            }
+        }
+
+        if (sjcSell > 0) {
+            if (tvSjcPrice != null) tvSjcPrice.setText(sjcSell + " tr/lượng");
+            if (tvSjcSub != null) tvSjcSub.setText("Mua: " + (sjcBuy > 0 ? sjcBuy : sjcSell - 2) + " tr • Bán: " + sjcSell + " tr");
+        }
+        if (ringSell > 0) {
+            if (tvRingPrice != null) tvRingPrice.setText(ringSell + " tr/lượng");
+            if (tvRingSub != null) tvRingSub.setText("Mua: " + (ringBuy > 0 ? ringBuy : ringSell - 1.5) + " tr • Bán: " + ringSell + " tr");
+        } else {
+            if (tvRingPrice != null) tvRingPrice.setText("-- tr/lượng");
+            if (tvRingSub != null) tvRingSub.setText("Chưa có dữ liệu vàng nhẫn");
+        }
+        if (worldPrice > 0) {
+            if (tvWorldPrice != null) tvWorldPrice.setText(worldPrice + " USD/oz");
+            if (tvWorldSub != null) tvWorldSub.setText("Biến động thị trường 24h");
+        } else {
+            if (tvWorldPrice != null) tvWorldPrice.setText("-- USD/oz");
+            if (tvWorldSub != null) tvWorldSub.setText("Thị trường quốc tế");
+        }
+
+        if (shouldSpeak && sjcSell > 0) {
+            String speech = "Giá vàng SJC hôm nay bán ra " + sjcSell + " triệu đồng một lượng"
+                    + (sjcBuy > 0 ? ", mua vào " + sjcBuy + " triệu." : ".");
+            AssistantSpeechSpeaker.getInstance(context).speak(speech);
+        }
     }
 
     private void showAssistantAddonUpsellCard(TvAssistantDispatcher.ParsedIntent intent, WidgetAddonGatekeeper.RequirementResult req) {
