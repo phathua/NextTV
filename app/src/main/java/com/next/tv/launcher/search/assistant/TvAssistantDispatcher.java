@@ -297,14 +297,17 @@ public final class TvAssistantDispatcher {
     private static boolean matchesDirectMovie(String norm) {
         return (norm.contains("tren nuvio") || norm.contains("o nuvio") ||
                 norm.contains("tren stremio") || norm.contains("o stremio") ||
-                norm.contains("tren cloudstream") || norm.contains("o cloudstream"));
+                norm.contains("tren cloudstream") || norm.contains("o cloudstream") ||
+                norm.startsWith("tim phim ") || norm.startsWith("xem phim ") ||
+                norm.startsWith("mo phim ") || norm.startsWith("bat phim ") ||
+                norm.contains(" phim bo") || norm.contains(" phim le"));
     }
 
     private static String extractMovieApp(String norm) {
         if (norm.contains("nuvio")) return "com.nuvio.tv";
         if (norm.contains("stremio")) return "com.stremio.one";
         if (norm.contains("cloudstream")) return "com.lagradost.cloudstream3";
-        return "com.nuvio.tv";
+        return null;
     }
 
     private static boolean matchesAppLaunch(String norm) {

@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
 
 /**
  * Executes system-level controls (Volume, Bluetooth, App Launching) safely on Android TV.
@@ -81,11 +80,7 @@ public final class TvAssistantActionExecutor {
      * on a background thread to prevent UI thread frame drops.
      */
     private void preloadAppCache() {
-        Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "NextTV-AppPreload");
-            t.setDaemon(true);
-            return t;
-        }).execute(() -> {
+        Thread t = new Thread(() -> {
             try {
                 PackageManager pm = context.getPackageManager();
                 List<CachedAppEntry> entries = new ArrayList<>();
@@ -110,12 +105,17 @@ public final class TvAssistantActionExecutor {
                     entries.add(new CachedAppEntry(pkg, label, norm));
                 }
 
-                appCache.clear();
-                appCache.addAll(entries);
+                synchronized (appCache) {
+                    appCache.clear();
+                    appCache.addAll(entries);
+                }
             } catch (Exception e) {
                 Log.w(TAG, "preloadAppCache failed: " + e.getMessage());
             }
-        });
+        }, "NextTV-AppPreload");
+        t.setDaemon(true);
+        t.setPriority(Thread.NORM_PRIORITY - 1);
+        t.start();
     }
 
     /**

@@ -47,7 +47,10 @@ import com.next.tv.launcher.security.NativeSecurityBridge;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -72,6 +75,7 @@ import com.next.tv.launcher.widget.WidgetProtocolEngine;
 
 public final class GlobalSearchOverlayManager {
     private static final String TAG = "TvHome.Search";
+    private static final Pattern PATTERN_RESTRICTED_WORD = Pattern.compile("(?i)\\b(ma|porn|sex|xxx|kill)\\b");
     private static final String PREFS_NAME = "global_search_prefs";
     public static final String KEY_MIC_OVERRIDE = "mic_button_override_enabled";
     public static final String KEY_BRAVE_ENABLED = "search_brave_enabled";
@@ -750,8 +754,8 @@ public final class GlobalSearchOverlayManager {
         List<SearchResultItem> filtered = new ArrayList<>();
         for (SearchResultItem it : toDisplay) {
             if (isKid && it.itemType != SearchResultItem.TYPE_SKELETON) {
-                String text = ((it.title != null ? it.title : "") + " " + (it.subtitle != null ? it.subtitle : "")).toLowerCase();
-                if (text.contains("18+") || text.contains("sex") || text.contains("kinh dị") || text.contains("horror") || text.contains("adult")) {
+                String text = ((it.title != null ? it.title : "") + " " + (it.subtitle != null ? it.subtitle : "")).toLowerCase(Locale.ROOT);
+                if (text.contains("18+") || text.contains("sex") || text.contains("kinh dị") || text.contains("horror") || text.contains("adult") || text.contains("phim ma") || PATTERN_RESTRICTED_WORD.matcher(text).find()) {
                     continue;
                 }
             }
@@ -1186,14 +1190,14 @@ public final class GlobalSearchOverlayManager {
 
     private boolean isRestrictedQueryInKidMode(String q) {
         if (q == null) return false;
-        String lower = q.toLowerCase();
-        String[] restricted = {
-            "18+", "sex", "người lớn", "kinh dị", "bạo lực", "ma", "kill", "porn", "adult", "horror"
+        String lower = q.toLowerCase(Locale.ROOT);
+        String[] restrictedPhrases = {
+            "18+", "người lớn", "kinh dị", "bạo lực", "phim ma", "bóng ma", "hồn ma", "phim sex", "adult", "horror"
         };
-        for (String r : restricted) {
-            if (lower.contains(r)) return true;
+        for (String phrase : restrictedPhrases) {
+            if (lower.contains(phrase)) return true;
         }
-        return false;
+        return PATTERN_RESTRICTED_WORD.matcher(lower).find();
     }
 
     private void fetchTmdbMoviesAndSeries(String query, boolean autoFocus) {
@@ -1234,18 +1238,18 @@ public final class GlobalSearchOverlayManager {
 
                 if (conn.getResponseCode() == 200) {
                     InputStream in = conn.getInputStream();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     byte[] buf = new byte[8192];
-                    StringBuilder sb = new StringBuilder();
                     int read;
                     int totalRead = 0;
                     final int MAX_STREAM_BYTES = 262144; // 256KB cap
                     while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
-                        sb.append(new String(buf, 0, read, "UTF-8"));
+                        baos.write(buf, 0, read);
                         totalRead += read;
                     }
                     in.close();
 
-                    JSONObject json = new JSONObject(sb.toString());
+                    JSONObject json = new JSONObject(baos.toString("UTF-8"));
                     if (json.has("results")) {
                         JSONArray results = json.getJSONArray("results");
                         for (int i = 0; i < results.length() && movieItems.size() < 8; i++) {
@@ -1386,18 +1390,18 @@ public final class GlobalSearchOverlayManager {
 
                 if (conn.getResponseCode() == 200) {
                     InputStream in = conn.getInputStream();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     byte[] buf = new byte[8192];
-                    StringBuilder sb = new StringBuilder();
                     int read;
                     int totalRead = 0;
                     final int MAX_STREAM_BYTES = 262144; // 256KB cap
                     while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
-                        sb.append(new String(buf, 0, read, "UTF-8"));
+                        baos.write(buf, 0, read);
                         totalRead += read;
                     }
                     in.close();
 
-                    JSONObject json = new JSONObject(sb.toString());
+                    JSONObject json = new JSONObject(baos.toString("UTF-8"));
                     if (json.has("metas")) {
                         JSONArray metas = json.getJSONArray("metas");
                         for (int i = 0; i < Math.min(metas.length(), 6); i++) {
@@ -1499,9 +1503,10 @@ public final class GlobalSearchOverlayManager {
 
     private List<SearchResultItem> fetchYoutubeInnertubeVideos(String query, String detectedYtPkg, String ytLabel, Drawable ytIcon) {
         List<SearchResultItem> items = new ArrayList<>();
+        HttpURLConnection conn = null;
         try {
             URL url = new URL("https://www.youtube.com/youtubei/v1/search?prettyPrint=false");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(6000);
             conn.setReadTimeout(6000);
@@ -1527,18 +1532,18 @@ public final class GlobalSearchOverlayManager {
 
             if (conn.getResponseCode() == 200) {
                 InputStream in = conn.getInputStream();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 byte[] buf = new byte[16384];
-                StringBuilder sb = new StringBuilder();
                 int read;
                 int totalRead = 0;
                 final int MAX_STREAM_BYTES = 262144; // 256KB
                 while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
-                    sb.append(new String(buf, 0, read, "UTF-8"));
+                    baos.write(buf, 0, read);
                     totalRead += read;
                 }
                 in.close();
 
-                JSONObject root = new JSONObject(sb.toString());
+                JSONObject root = new JSONObject(baos.toString("UTF-8"));
                 JSONObject contents = root.optJSONObject("contents");
                 if (contents != null) {
                     JSONObject twoCol = contents.optJSONObject("twoColumnSearchResultsRenderer");
@@ -1639,19 +1644,23 @@ public final class GlobalSearchOverlayManager {
                     }
                 }
             }
-            conn.disconnect();
         } catch (Exception e) {
             Log.w(TAG, "Innertube search failed: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try { conn.disconnect(); } catch (Exception ignored) {}
+            }
         }
         return items;
     }
 
     private List<SearchResultItem> fetchYoutubeSuggestionsFallback(String query, String detectedYtPkg, String ytLabel, Drawable ytIcon) {
         List<SearchResultItem> ytItems = new ArrayList<>();
+        HttpURLConnection conn = null;
         try {
             String encQuery = URLEncoder.encode(query, "UTF-8");
             URL url = new URL("https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=" + encQuery);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
@@ -1659,18 +1668,18 @@ public final class GlobalSearchOverlayManager {
 
             if (conn.getResponseCode() == 200) {
                 InputStream in = conn.getInputStream();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 byte[] buf = new byte[8192];
-                StringBuilder sb = new StringBuilder();
                 int read;
                 int totalRead = 0;
                 final int MAX_STREAM_BYTES = 262144; // 256KB
                 while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
-                    sb.append(new String(buf, 0, read, "UTF-8"));
+                    baos.write(buf, 0, read);
                     totalRead += read;
                 }
                 in.close();
 
-                String respStr = sb.toString();
+                String respStr = baos.toString("UTF-8");
                 int startIdx = respStr.indexOf('[');
                 int endIdx = respStr.lastIndexOf(']');
                 if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
@@ -1718,9 +1727,12 @@ public final class GlobalSearchOverlayManager {
                     }
                 }
             }
-            conn.disconnect();
         } catch (Exception e) {
             Log.w(TAG, "YouTube suggest failed: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try { conn.disconnect(); } catch (Exception ignored) {}
+            }
         }
 
         if (ytItems.isEmpty()) {
@@ -1781,18 +1793,18 @@ public final class GlobalSearchOverlayManager {
                 int respCode = conn.getResponseCode();
                 if (respCode == 200) {
                     InputStream in = conn.getInputStream();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     byte[] buf = new byte[8192];
-                    StringBuilder sb = new StringBuilder();
                     int read;
                     int totalRead = 0;
                     final int MAX_STREAM_BYTES = 262144; // 256KB cap
                     while ((read = in.read(buf)) != -1 && totalRead < MAX_STREAM_BYTES) {
-                        sb.append(new String(buf, 0, read, "UTF-8"));
+                        baos.write(buf, 0, read);
                         totalRead += read;
                     }
                     in.close();
 
-                    JSONObject json = new JSONObject(sb.toString());
+                    JSONObject json = new JSONObject(baos.toString("UTF-8"));
                     List<SearchResultItem> newsItems = new ArrayList<>();
 
                     JSONArray results = null;
@@ -2173,15 +2185,19 @@ public final class GlobalSearchOverlayManager {
         if (targetApp != null) {
             String pkg = null;
             Uri uri = null;
-            if ("nuvio".equalsIgnoreCase(targetApp)) {
+            String appDisplayName = targetApp;
+            if ("com.nuvio.tv".equals(targetApp) || "nuvio".equalsIgnoreCase(targetApp)) {
                 pkg = "com.nuvio.tv";
                 uri = Uri.parse("nuvio:///search?search=" + Uri.encode(cleanQuery));
-            } else if ("stremio".equalsIgnoreCase(targetApp)) {
+                appDisplayName = "Nuvio";
+            } else if ("com.stremio.one".equals(targetApp) || "stremio".equalsIgnoreCase(targetApp)) {
                 pkg = "com.stremio.one";
                 uri = Uri.parse("stremio:///search?search=" + Uri.encode(cleanQuery));
-            } else if ("cloudstream".equalsIgnoreCase(targetApp)) {
+                appDisplayName = "Stremio";
+            } else if ("com.lagradost.cloudstream3".equals(targetApp) || "cloudstream".equalsIgnoreCase(targetApp)) {
                 pkg = "com.lagradost.cloudstream3";
                 uri = Uri.parse("cloudstream:///search?query=" + Uri.encode(cleanQuery));
+                appDisplayName = "CloudStream";
             }
 
             if (pkg != null) {
@@ -2198,24 +2214,28 @@ public final class GlobalSearchOverlayManager {
 
                     if (lockManager.isAppLocked(pkg)) {
                         Activity act = (activeActivityRef != null) ? activeActivityRef.get() : MainActivity.activeInstance;
-                        Context dialogCtx = act != null ? act : context;
-                        new PinLockDialog(dialogCtx, "Khóa ứng dụng", "Nhập mã để mở " + targetApp, new PinLockDialog.PinResultListener() {
-                            @Override
-                            public void onSuccess() {
-                                try {
-                                    context.startActivity(directIntent);
-                                    dismiss();
-                                } catch (Exception ignored) {}
-                            }
-                            @Override public void onCancel() {}
-                        }).show();
-                        AssistantSpeechSpeaker.getInstance(context).speak("Đang mở tìm kiếm phim trên " + targetApp + ".");
-                        return;
+                        if (act != null && !act.isFinishing()) {
+                            final String finalAppDisplayName = appDisplayName;
+                            new PinLockDialog(act, "Khóa ứng dụng", "Nhập mã để mở " + finalAppDisplayName, new PinLockDialog.PinResultListener() {
+                                @Override
+                                public void onSuccess() {
+                                    try {
+                                        context.startActivity(directIntent);
+                                        dismiss();
+                                    } catch (Exception ignored) {}
+                                }
+                                @Override public void onCancel() {}
+                            }).show();
+                            AssistantSpeechSpeaker.getInstance(context).speak("Nhập mã để mở " + finalAppDisplayName + ".");
+                            return;
+                        }
+                        // If no valid Activity to show Dialog, do NOT use ApplicationContext to avoid BadTokenException.
+                        // Fall back to filtering movie results on the overlay below.
                     } else {
                         try {
                             context.startActivity(directIntent);
                             dismiss();
-                            AssistantSpeechSpeaker.getInstance(context).speak("Đang mở tìm kiếm phim " + cleanQuery + " trên " + targetApp + ".");
+                            AssistantSpeechSpeaker.getInstance(context).speak("Đang mở tìm kiếm phim " + cleanQuery + " trên " + appDisplayName + ".");
                             return;
                         } catch (Exception ignored) {}
                     }
@@ -2596,17 +2616,24 @@ public final class GlobalSearchOverlayManager {
             for (int i = 0; i < subs.length(); i++) {
                 JSONObject sub = subs.optJSONObject(i);
                 if (sub == null) continue;
-                String title = sub.optString("title", "");
+                String label = sub.optString("label", sub.optString("title", "")).toLowerCase(Locale.ROOT);
+                String title = sub.optString("title", "").toLowerCase(Locale.ROOT);
+                String combined = label + " " + title;
                 double temp = sub.optDouble("temp", 0.0);
-                if (title.contains("SJC Mua")) {
+
+                if (combined.contains("sjc") && (combined.contains("mua") || combined.contains("buy"))) {
                     sjcBuy = temp;
-                } else if (title.contains("SJC Bán")) {
+                } else if (combined.contains("sjc") && (combined.contains("ban") || combined.contains("sell"))) {
                     sjcSell = temp;
-                } else if (title.contains("Nhẫn") && title.contains("Mua")) {
+                } else if (label.equals("mua vao") || label.equals("mua")) {
+                    if (sjcBuy == 0.0) sjcBuy = temp;
+                } else if (label.equals("ban ra") || label.equals("ban")) {
+                    if (sjcSell == 0.0) sjcSell = temp;
+                } else if ((combined.contains("nhan") || combined.contains("vrtl") || combined.contains("999")) && (combined.contains("mua") || combined.contains("buy"))) {
                     ringBuy = temp;
-                } else if (title.contains("Nhẫn") && title.contains("Bán")) {
+                } else if ((combined.contains("nhan") || combined.contains("vrtl") || combined.contains("999")) && (combined.contains("ban") || combined.contains("sell") || label.contains("nhan 9999"))) {
                     ringSell = temp;
-                } else if (title.contains("Thế Giới") || title.contains("World")) {
+                } else if (combined.contains("the gioi") || combined.contains("world")) {
                     worldPrice = (int) Math.round(temp);
                 }
             }
@@ -2614,11 +2641,23 @@ public final class GlobalSearchOverlayManager {
 
         if (sjcSell > 0) {
             if (tvSjcPrice != null) tvSjcPrice.setText(sjcSell + " tr/lượng");
-            if (tvSjcSub != null) tvSjcSub.setText("Mua: " + (sjcBuy > 0 ? sjcBuy : sjcSell - 2) + " tr • Bán: " + sjcSell + " tr");
+            if (tvSjcSub != null) {
+                if (sjcBuy > 0) {
+                    tvSjcSub.setText("Mua: " + sjcBuy + " tr • Bán: " + sjcSell + " tr");
+                } else {
+                    tvSjcSub.setText("Bán ra: " + sjcSell + " tr/lượng");
+                }
+            }
         }
         if (ringSell > 0) {
             if (tvRingPrice != null) tvRingPrice.setText(ringSell + " tr/lượng");
-            if (tvRingSub != null) tvRingSub.setText("Mua: " + (ringBuy > 0 ? ringBuy : ringSell - 1.5) + " tr • Bán: " + ringSell + " tr");
+            if (tvRingSub != null) {
+                if (ringBuy > 0) {
+                    tvRingSub.setText("Mua: " + ringBuy + " tr • Bán: " + ringSell + " tr");
+                } else {
+                    tvRingSub.setText("Bán ra: " + ringSell + " tr/lượng");
+                }
+            }
         } else {
             if (tvRingPrice != null) tvRingPrice.setText("-- tr/lượng");
             if (tvRingSub != null) tvRingSub.setText("Chưa có dữ liệu vàng nhẫn");

@@ -146,9 +146,11 @@ async function fetchGoldPrice() {
           heroUnit: "triệu/lượng",
           headerRight: "+0.5%",
           subItems: [
-            { label: "Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
-            { label: "Bán ra", temp: Number(sjcSell.toFixed(1)) },
-            { label: "Nhẫn 9999", temp: Number((vrtlSell || 88.5).toFixed(1)) }
+            { label: "Mua vào", title: "SJC Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
+            { label: "Bán ra", title: "SJC Bán ra", temp: Number(sjcSell.toFixed(1)) },
+            { label: "Nhẫn Mua", title: "Nhẫn 999.9 Mua", temp: Number((vrtlBuy || 87.0).toFixed(1)) },
+            { label: "Nhẫn 9999", title: "Nhẫn 999.9 Bán", temp: Number((vrtlSell || 88.5).toFixed(1)) },
+            { label: "Thế giới", title: "Vàng Thế Giới", temp: 2745 }
           ]
         };
       }
@@ -163,9 +165,11 @@ async function fetchGoldPrice() {
     heroUnit: "triệu/lượng",
     headerRight: "+0.8%",
     subItems: [
-      { label: "Mua vào", temp: 87.5 },
-      { label: "Bán ra", temp: 89.5 },
-      { label: "Thế giới", temp: 2745 }
+      { label: "Mua vào", title: "SJC Mua vào", temp: 87.5 },
+      { label: "Bán ra", title: "SJC Bán ra", temp: 89.5 },
+      { label: "Nhẫn Mua", title: "Nhẫn 999.9 Mua", temp: 86.8 },
+      { label: "Nhẫn 9999", title: "Nhẫn 999.9 Bán", temp: 88.2 },
+      { label: "Thế giới", title: "Vàng Thế Giới", temp: 2745 }
     ]
   };
 }
