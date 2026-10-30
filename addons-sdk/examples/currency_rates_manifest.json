@@ -1,0 +1,10 @@
+{
+  "id": "com.community.currency-rates",
+  "name": "Tỷ giá Ngoại tệ",
+  "version": "1.0.0",
+  "template": "hero_metric",
+  "description": "Tỷ giá USD, EUR, JPY sang VND theo thời gian thực",
+  "refreshIntervalSec": 1800,
+  "endpoint": "https://api.example.com/api/v1/widgets/batch?ids=currency",
+  "defaultEnabled": true
+}

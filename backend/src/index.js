@@ -110,91 +110,393 @@ const SPORT_ENDPOINTS = {
 };
 
 
+// In-memory fallback cache for financial data
+const lastKnownGoodFinance = new Map();
+
+/**
+ * Tiện ích: Tỷ giá ngoại tệ (NWP-1 hero_metric)
+ * Nguồn 1: Fawazahmed0 Currency API (JSDelivr CDN)
+ * Nguồn 2: Cloudflare Pages Mirror
+ * Nguồn 3: Open ExchangeRate API
+ */
+async function fetchCurrencyRates() {
+  const cacheKey = "currency_rates";
+  try {
+    let usdData = null;
+
+    try {
+      const res = await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json", {
+        headers: { "User-Agent": "NextTV/1.0" }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.usd?.vnd) usdData = json.usd;
+      }
+    } catch (e1) {
+      console.warn("Currency primary failed: " + e1.message);
+    }
+
+    if (!usdData) {
+      try {
+        const res = await fetch("https://latest.currency-api.pages.dev/v1/currencies/usd.json", {
+          headers: { "User-Agent": "NextTV/1.0" }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.usd?.vnd) usdData = json.usd;
+        }
+      } catch (e2) {
+        console.warn("Currency fallback 1 failed: " + e2.message);
+      }
+    }
+
+    if (!usdData) {
+      try {
+        const res = await fetch("https://open.er-api.com/v6/latest/USD", {
+          headers: { "User-Agent": "NextTV/1.0" }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.rates?.VND) {
+            usdData = {
+              vnd: json.rates.VND,
+              eur: json.rates.EUR || 0.89,
+              jpy: json.rates.JPY || 155.0,
+              krw: json.rates.KRW || 1380.0
+            };
+          }
+        }
+      } catch (e3) {
+        console.warn("Currency fallback 2 failed: " + e3.message);
+      }
+    }
+
+    if (usdData && usdData.vnd) {
+      const usdVnd = Math.round(usdData.vnd);
+      const eurVnd = Math.round(usdData.eur ? usdData.vnd / usdData.eur : 27300);
+      const jpyVnd = Number((usdData.jpy ? usdData.vnd / usdData.jpy : 165).toFixed(1));
+      const krwVnd = Number((usdData.krw ? usdData.vnd / usdData.krw : 18.5).toFixed(1));
+
+      const result = {
+        template: "hero_metric",
+        headerLeft: "Tỷ giá Ngoại tệ",
+        headerRight: "VND",
+        rawTemp: usdVnd,
+        heroUnit: "đ/USD",
+        subItems: [
+          { label: "EUR", title: "1 EUR", temp: eurVnd },
+          { label: "JPY", title: "1 JPY", temp: jpyVnd },
+          { label: "KRW", title: "1 KRW", temp: krwVnd }
+        ]
+      };
+      lastKnownGoodFinance.set(cacheKey, result);
+      return result;
+    }
+  } catch (err) {
+    console.warn("fetchCurrencyRates error: " + err.message);
+  }
+
+  if (lastKnownGoodFinance.has(cacheKey)) {
+    return lastKnownGoodFinance.get(cacheKey);
+  }
+
+  return {
+    template: "hero_metric",
+    headerLeft: "Tỷ giá Ngoại tệ",
+    headerRight: "VND",
+    rawTemp: 25760,
+    heroUnit: "đ/USD",
+    subItems: [
+      { label: "EUR", title: "1 EUR", temp: 28800 },
+      { label: "JPY", title: "1 JPY", temp: 163.5 },
+      { label: "KRW", title: "1 KRW", temp: 18.6 }
+    ]
+  };
+}
+
 /**
  * Tiện ích: Giá vàng SJC (NWP-1 hero_metric)
+ * Nguồn 1: BTMC API giá vàng trong nước (SJC & Nhẫn tròn trơn 999.9)
+ * Nguồn 2: Binance PAXG/USDT (Vàng thế giới quy đổi)
+ * Nguồn 3: Last Known Good Memory Cache
  */
 async function fetchGoldPrice() {
+  const cacheKey = "gold_price";
   try {
-    const res = await fetch("https://api.btmc.vn/api/BTMCAPI/getpricebtmc?key=3kd8ub1k9MgmR44tPU6h8H5g3Ar02t", {
-      headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const items = data?.DataList?.Data || [];
-      let sjcBuy = 0, sjcSell = 0;
-      let vrtlBuy = 0, vrtlSell = 0;
-      for (const item of items) {
-        for (const k in item) {
-          if (k.startsWith("@n_") && item[k]) {
-            const idx = k.split("_")[1];
-            const name = String(item[k]).toUpperCase();
-            if (name.includes("SJC") && (!sjcBuy || !sjcSell)) {
-              sjcBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
-              sjcSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
-            } else if ((name.includes("RỒNG THĂNG LONG") || name.includes("VRTL") || name.includes("999.9")) && (!vrtlBuy || !vrtlSell)) {
-              vrtlBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
-              vrtlSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
+    let sjcBuy = 0, sjcSell = 0;
+    let ringBuy = 0, ringSell = 0;
+
+    // Nguồn 1: BTMC API
+    try {
+      const res = await fetch("https://api.btmc.vn/api/BTMCAPI/getpricebtmc?key=3kd8ub1k9MgmR44tPU6h8H5g3Ar02t", {
+        headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = data?.DataList?.Data || [];
+        for (const item of items) {
+          for (const k in item) {
+            if (k.startsWith("@n_") && item[k]) {
+              const idx = k.split("_")[1];
+              const name = String(item[k]).toUpperCase();
+              if (name.includes("SJC") && (!sjcBuy || !sjcSell)) {
+                sjcBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
+                sjcSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
+              } else if ((name.includes("NHẪN TRÒN TRƠN") || name.includes("VRTL") || name.includes("999.9")) && (!ringBuy || !ringSell)) {
+                ringBuy = parseFloat(item["@pb_" + idx] || 0) / 100000;
+                ringSell = parseFloat(item["@ps_" + idx] || 0) / 100000;
+              }
             }
           }
         }
       }
-      if (sjcSell > 0) {
-        return {
-          template: "hero_metric",
-          headerLeft: "Vàng SJC 9999",
-          rawTemp: Number(sjcSell.toFixed(1)),
-          heroUnit: "triệu/lượng",
-          headerRight: "+0.5%",
-          subItems: [
-            { label: "Mua vào", title: "SJC Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
-            { label: "Bán ra", title: "SJC Bán ra", temp: Number(sjcSell.toFixed(1)) },
-            { label: "Nhẫn Mua", title: "Nhẫn 999.9 Mua", temp: Number((vrtlBuy || 87.0).toFixed(1)) },
-            { label: "Nhẫn 9999", title: "Nhẫn 999.9 Bán", temp: Number((vrtlSell || 88.5).toFixed(1)) },
-            { label: "Thế giới", title: "Vàng Thế Giới", temp: 2745 }
-          ]
-        };
+    } catch (e1) {
+      console.warn("BTMC gold fetch failed: " + e1.message);
+    }
+
+    // Nguồn 2: Binance PAXG/USDT (Giá vàng thế giới quy đổi)
+    let worldGoldOunce = 0;
+    try {
+      const paxgRes = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT");
+      if (paxgRes.ok) {
+        const paxgJson = await paxgRes.json();
+        worldGoldOunce = parseFloat(paxgJson.price || 0);
       }
+    } catch (e2) {
+      console.warn("Binance PAXG gold fetch failed: " + e2.message);
+    }
+
+    if (sjcSell > 0) {
+      const result = {
+        template: "hero_metric",
+        headerLeft: "Vàng SJC 9999",
+        rawTemp: Number(sjcSell.toFixed(1)),
+        heroUnit: "triệu/lượng",
+        headerRight: "+0.5%",
+        subItems: [
+          { label: "Mua vào", title: "SJC Mua vào", temp: Number((sjcBuy || (sjcSell - 2)).toFixed(1)) },
+          { label: "Bán ra", title: "SJC Bán ra", temp: Number(sjcSell.toFixed(1)) },
+          { label: "Nhẫn 9999", title: "Nhẫn 999.9", temp: Number((ringSell || (sjcSell - 1.2)).toFixed(1)) },
+          { label: "Thế giới", title: "Vàng Thế Giới", temp: Math.round(worldGoldOunce || 3900) }
+        ]
+      };
+      lastKnownGoodFinance.set(cacheKey, result);
+      return result;
+    }
+
+    if (worldGoldOunce > 0) {
+      const approxWorldTaelVnd = (worldGoldOunce * 1.20565 * 25700) / 1000000;
+      const result = {
+        template: "hero_metric",
+        headerLeft: "Vàng Thế Giới (PAXG)",
+        rawTemp: Number(approxWorldTaelVnd.toFixed(1)),
+        heroUnit: "triệu/lượng",
+        headerRight: "Quốc tế",
+        subItems: [
+          { label: "Ounce", title: "1 Ounce (USD)", temp: Math.round(worldGoldOunce) },
+          { label: "Quy đổi", title: "1 Lượng (VND)", temp: Number(approxWorldTaelVnd.toFixed(1)) },
+          { label: "Tỷ giá", title: "USD/VND", temp: 25700 }
+        ]
+      };
+      lastKnownGoodFinance.set(cacheKey, result);
+      return result;
     }
   } catch (err) {
     console.warn("fetchGoldPrice error: " + err.message);
   }
+
+  if (lastKnownGoodFinance.has(cacheKey)) {
+    return lastKnownGoodFinance.get(cacheKey);
+  }
+
   return {
     template: "hero_metric",
     headerLeft: "Vàng SJC 9999",
-    rawTemp: 89.5,
+    rawTemp: 141.4,
     heroUnit: "triệu/lượng",
-    headerRight: "+0.8%",
+    headerRight: "+0.5%",
     subItems: [
-      { label: "Mua vào", title: "SJC Mua vào", temp: 87.5 },
-      { label: "Bán ra", title: "SJC Bán ra", temp: 89.5 },
-      { label: "Nhẫn Mua", title: "Nhẫn 999.9 Mua", temp: 86.8 },
-      { label: "Nhẫn 9999", title: "Nhẫn 999.9 Bán", temp: 88.2 },
-      { label: "Thế giới", title: "Vàng Thế Giới", temp: 2745 }
+      { label: "Mua vào", title: "SJC Mua vào", temp: 136.2 },
+      { label: "Bán ra", title: "SJC Bán ra", temp: 141.4 },
+      { label: "Nhẫn 9999", title: "Nhẫn 999.9", temp: 140.2 }
     ]
   };
 }
 
 /**
  * Tiện ích: Tỷ giá tiền số Bitcoin & Crypto (NWP-1 hero_metric)
+ * Nguồn 1: Binance Public Ticker 24h & Multi-price API
+ * Nguồn 2: CoinGecko Simple Price API
+ * Nguồn 3: Last Known Good Memory Cache
  */
 async function fetchCryptoPrice() {
+  const cacheKey = "crypto_price";
+  try {
+    let btcPrice = 0, btcChange = 0;
+    let ethPrice = 0, solPrice = 0, bnbPrice = 0;
+
+    // Nguồn 1: Binance
+    try {
+      const [res24h, resMulti] = await Promise.all([
+        fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT"),
+        fetch("https://api.binance.com/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22,%22SOLUSDT%22,%22BNBUSDT%22%5D")
+      ]);
+
+      if (res24h.ok) {
+        const j24h = await res24h.json();
+        btcPrice = parseFloat(j24h.lastPrice || 0);
+        btcChange = parseFloat(j24h.priceChangePercent || 0);
+      }
+
+      if (resMulti.ok) {
+        const jMulti = await resMulti.json();
+        for (const item of jMulti) {
+          if (item.symbol === "ETHUSDT") ethPrice = parseFloat(item.price || 0);
+          else if (item.symbol === "SOLUSDT") solPrice = parseFloat(item.price || 0);
+          else if (item.symbol === "BNBUSDT") bnbPrice = parseFloat(item.price || 0);
+        }
+      }
+    } catch (e1) {
+      console.warn("Binance crypto fetch failed: " + e1.message);
+    }
+
+    // Nguồn 2: CoinGecko Fallback
+    if (!btcPrice) {
+      try {
+        const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true");
+        if (cgRes.ok) {
+          const cg = await cgRes.json();
+          btcPrice = cg.bitcoin?.usd || 0;
+          btcChange = cg.bitcoin?.usd_24h_change || 0;
+          ethPrice = cg.ethereum?.usd || 0;
+          solPrice = cg.solana?.usd || 0;
+          bnbPrice = cg.binancecoin?.usd || 0;
+        }
+      } catch (e2) {
+        console.warn("CoinGecko crypto fetch failed: " + e2.message);
+      }
+    }
+
+    if (btcPrice > 0) {
+      const changeSign = btcChange >= 0 ? "+" : "";
+      const result = {
+        template: "hero_metric",
+        headerLeft: "Bitcoin (BTC)",
+        rawTemp: Math.round(btcPrice),
+        heroUnit: "USD",
+        headerRight: `${changeSign}${btcChange.toFixed(1)}%`,
+        subItems: [
+          { label: "ETH", title: "Ethereum", temp: Math.round(ethPrice) },
+          { label: "SOL", title: "Solana", temp: Number(solPrice.toFixed(1)) },
+          { label: "BNB", title: "BNB", temp: Math.round(bnbPrice) }
+        ]
+      };
+      lastKnownGoodFinance.set(cacheKey, result);
+      return result;
+    }
+  } catch (err) {
+    console.warn("fetchCryptoPrice error: " + err.message);
+  }
+
+  if (lastKnownGoodFinance.has(cacheKey)) {
+    return lastKnownGoodFinance.get(cacheKey);
+  }
+
   return {
     template: "hero_metric",
     headerLeft: "Bitcoin (BTC)",
-    rawTemp: 68450,
+    rawTemp: 77280,
     heroUnit: "USD",
-    headerRight: "+2.4%",
+    headerRight: "-2.5%",
     subItems: [
-      { label: "ETH", temp: 2540 },
-      { label: "SOL", temp: 182 },
-      { label: "BNB", temp: 595 }
+      { label: "ETH", title: "Ethereum", temp: 2245 },
+      { label: "SOL", title: "Solana", temp: 95.0 },
+      { label: "BNB", title: "BNB", temp: 701 }
     ]
   };
 }
 
 /**
- * Tiện ích: Âm lịch Việt Nam (NWP-1 hero_metric)
+ * Tiện ích: Thị trường Chứng khoán (NWP-1 hero_metric)
+ * Chỉ số VN-Index, S&P 500, NASDAQ thời gian thực
  */
+async function fetchStockMarket() {
+  const cacheKey = "stock_market";
+  try {
+    let vnIndex = 0, vnChange = 0;
+    let sp500 = 0, nasdaq = 0;
+
+    try {
+      const [resVn, resSp, resNas] = await Promise.all([
+        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EVNINDEX.VN?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } }),
+        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } }),
+        fetch("https://query1.finance.yahoo.com/v8/finance/chart/%5EIXIC?interval=1d", { headers: { "User-Agent": "Mozilla/5.0 NextTV/1.0" } })
+      ]);
+
+      if (resVn.ok) {
+        const jVn = await resVn.json();
+        const meta = jVn?.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) {
+          vnIndex = meta.regularMarketPrice;
+          const prev = meta.chartPreviousClose || vnIndex;
+          vnChange = ((vnIndex - prev) / prev) * 100;
+        }
+      }
+
+      if (resSp.ok) {
+        const jSp = await resSp.json();
+        const meta = jSp?.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) sp500 = meta.regularMarketPrice;
+      }
+
+      if (resNas.ok) {
+        const jNas = await resNas.json();
+        const meta = jNas?.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) nasdaq = meta.regularMarketPrice;
+      }
+    } catch (e1) {
+      console.warn("Stock fetch failed: " + e1.message);
+    }
+
+    if (vnIndex > 0) {
+      const changeSign = vnChange >= 0 ? "+" : "";
+      const result = {
+        template: "hero_metric",
+        headerLeft: "VN-Index",
+        rawTemp: Number(vnIndex.toFixed(1)),
+        heroUnit: "điểm",
+        headerRight: `${changeSign}${vnChange.toFixed(2)}%`,
+        subItems: [
+          { label: "VNINDEX", title: "VN-Index", temp: Number(vnIndex.toFixed(1)) },
+          { label: "S&P 500", title: "S&P 500", temp: Math.round(sp500 || 7570) },
+          { label: "NASDAQ", title: "Nasdaq", temp: Math.round(nasdaq || 25380) }
+        ]
+      };
+      lastKnownGoodFinance.set(cacheKey, result);
+      return result;
+    }
+  } catch (err) {
+    console.warn("fetchStockMarket error: " + err.message);
+  }
+
+  if (lastKnownGoodFinance.has(cacheKey)) {
+    return lastKnownGoodFinance.get(cacheKey);
+  }
+
+  return {
+    template: "hero_metric",
+    headerLeft: "VN-Index",
+    rawTemp: 1741.6,
+    heroUnit: "điểm",
+    headerRight: "-0.80%",
+    subItems: [
+      { label: "VNINDEX", title: "VN-Index", temp: 1741.6 },
+      { label: "S&P 500", title: "S&P 500", temp: 7577 },
+      { label: "NASDAQ", title: "Nasdaq", temp: 25386 }
+    ]
+  };
+}
+
 async function fetchVietnamCalendar() {
   const now = new Date();
   const day = now.getDate();
@@ -337,7 +639,9 @@ export default {
         url.pathname === "/youtube/manifest.json" ||
         url.pathname === "/addons/gold/manifest.json" ||
         url.pathname === "/addons/crypto/manifest.json" ||
-        url.pathname === "/addons/vietnam_calendar/manifest.json") {
+        url.pathname === "/addons/vietnam_calendar/manifest.json" ||
+        url.pathname === "/addons/currency/manifest.json" ||
+        url.pathname === "/addons/stocks/manifest.json") {
       const auth = await verifyApkKeystoreAndSignature(request, env, "manifest");
       if (!auth.ok) {
         return new Response(JSON.stringify({ error: auth.error }), {
@@ -418,6 +722,32 @@ export default {
         description: "Biến động Bitcoin, ETH, SOL theo thời gian thực",
         refreshIntervalSec: 300,
         endpoint: `${url.origin}/api/v1/widgets/batch?ids=crypto`
+      }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
+    }
+
+    if (url.pathname === "/addons/currency/manifest.json") {
+      return new Response(JSON.stringify({
+        id: "com.nexttv.widget.currency",
+        name: "Tỷ giá Ngoại tệ",
+        version: "1.0.0",
+        author: "NextTV Labs",
+        template: "hero_metric",
+        description: "Tỷ giá USD, EUR, JPY sang VND theo thời gian thực",
+        refreshIntervalSec: 1800,
+        endpoint: `${url.origin}/api/v1/widgets/batch?ids=currency`
+      }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
+    }
+
+    if (url.pathname === "/addons/stocks/manifest.json") {
+      return new Response(JSON.stringify({
+        id: "com.nexttv.widget.stocks",
+        name: "Thị trường Chứng khoán",
+        version: "1.0.0",
+        author: "NextTV Labs",
+        template: "hero_metric",
+        description: "Chỉ số VN-Index, S&P 500 và Nasdaq thời gian thực",
+        refreshIntervalSec: 300,
+        endpoint: `${url.origin}/api/v1/widgets/batch?ids=stocks`
       }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
     }
 
@@ -507,6 +837,22 @@ export default {
           `https://nexttv-edge.local/crypto/price`,
           300,
           () => fetchCryptoPrice(),
+          ctx
+        );
+      }
+      if (requestedIds.includes("currency")) {
+        tasks.currency = getCachedOrFetch(
+          `https://nexttv-edge.local/currency/rates`,
+          1800,
+          () => fetchCurrencyRates(),
+          ctx
+        );
+      }
+      if (requestedIds.includes("stocks")) {
+        tasks.stocks = getCachedOrFetch(
+          `https://nexttv-edge.local/stocks/market`,
+          300,
+          () => fetchStockMarket(),
           ctx
         );
       }

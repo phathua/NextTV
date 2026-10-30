@@ -1,0 +1,10 @@
+{
+  "id": "com.community.stock-market",
+  "name": "Thị trường Chứng khoán",
+  "version": "1.0.0",
+  "template": "hero_metric",
+  "description": "Chỉ số VN-Index, S&P 500 và Nasdaq thời gian thực",
+  "refreshIntervalSec": 300,
+  "endpoint": "https://api.example.com/api/v1/widgets/batch?ids=stocks",
+  "defaultEnabled": true
+}

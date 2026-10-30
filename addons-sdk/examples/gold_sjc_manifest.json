@@ -1,10 +1,10 @@
 {
   "id": "com.community.gold-sjc",
-  "name": "Giá Vàng SJC",
+  "name": "Giá Vàng SJC 9999",
   "version": "1.0.0",
   "template": "hero_metric",
   "description": "Cập nhật giá vàng miếng SJC và vàng nhẫn 9999 theo thời gian thực",
   "refreshIntervalSec": 1800,
-  "endpoint": "https://example.workers.dev/api/feed/gold",
+  "endpoint": "https://api.example.com/api/v1/widgets/batch?ids=gold",
   "defaultEnabled": true
 }

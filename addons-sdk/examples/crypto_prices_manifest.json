@@ -1,0 +1,10 @@
+{
+  "id": "com.community.crypto-prices",
+  "name": "Tỷ giá Tiền số",
+  "version": "1.0.0",
+  "template": "hero_metric",
+  "description": "Biến động Bitcoin, Ethereum, Solana và BNB thời gian thực",
+  "refreshIntervalSec": 300,
+  "endpoint": "https://api.example.com/api/v1/widgets/batch?ids=crypto",
+  "defaultEnabled": true
+}
