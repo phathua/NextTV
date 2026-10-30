@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
 
 /**
  * Manages installed widget addons, local cache persistence, and official store catalog.
@@ -58,6 +60,9 @@ public final class WidgetAddonManager {
     private final ExecutorService executor;
     private final Handler mainHandler;
     private final List<OnAddonsChangedListener> listeners = new CopyOnWriteArrayList<>();
+    private List<WidgetAddon> cachedInstalledAddons = null;
+    private final Map<Integer, WidgetAddon> cachedTypeToAddonMap = new HashMap<>();
+    private final Map<String, Integer> cachedIdToTypeMap = new HashMap<>();
 
     public static WidgetAddonManager getInstance(Context context) {
         if (instance == null) {
@@ -126,12 +131,11 @@ public final class WidgetAddonManager {
             sb.append(defaults.get(i).getId());
         }
         prefs.edit().putString(KEY_ADDON_ORDER, sb.toString()).apply();
+        ensureCacheLoaded();
     }
 
-    /**
-     * Gets all installed widgets in user-defined order.
-     */
-    public synchronized List<WidgetAddon> getInstalledAddons() {
+    private synchronized void ensureCacheLoaded() {
+        if (cachedInstalledAddons != null) return;
         Map<String, WidgetAddon> map = new LinkedHashMap<>();
         String jsonStr = prefs.getString(KEY_INSTALLED_ADDONS, "[]");
         try {
@@ -162,11 +166,31 @@ public final class WidgetAddonManager {
         }
         // Append any remaining
         ordered.addAll(map.values());
-        return ordered;
+        rebuildCacheLocked(ordered);
+    }
+
+    private void rebuildCacheLocked(List<WidgetAddon> list) {
+        cachedInstalledAddons = new ArrayList<>(list);
+        cachedTypeToAddonMap.clear();
+        cachedIdToTypeMap.clear();
+        for (WidgetAddon a : cachedInstalledAddons) {
+            int type = getWidgetTypeForId(a.getId());
+            cachedTypeToAddonMap.put(type, a);
+            cachedIdToTypeMap.put(a.getId(), type);
+        }
+    }
+
+    /**
+     * Gets all installed widgets in user-defined order (instant in-memory copy).
+     */
+    public synchronized List<WidgetAddon> getInstalledAddons() {
+        ensureCacheLoaded();
+        return new ArrayList<>(cachedInstalledAddons);
     }
 
     /**
      * Maps an addon ID string to the corresponding integer widget type for WidgetSectionAdapter.
+     * Guaranteed non-negative with >1,000,000,000 slots to avoid hash collision.
      */
     public static int getWidgetTypeForId(String id) {
         if (id == null) return WidgetSectionAdapter.TYPE_WEATHER;
@@ -181,12 +205,12 @@ public final class WidgetAddonManager {
             case ID_CRYPTO: return WidgetSectionAdapter.TYPE_CRYPTO;
             case ID_VIETNAM_CALENDAR: return WidgetSectionAdapter.TYPE_VIETNAM_CALENDAR;
             default:
-                return 100 + (Math.abs(id.hashCode()) % 800);
+                return 1000 + (id.hashCode() & 0x3fffffff);
         }
     }
 
     /**
-     * Maps an integer widget type back to an addon ID string.
+     * Maps an integer widget type back to an addon ID string (O(1) memory lookup).
      */
     public synchronized String getIdForWidgetType(int type) {
         switch (type) {
@@ -200,12 +224,38 @@ public final class WidgetAddonManager {
             case WidgetSectionAdapter.TYPE_CRYPTO: return ID_CRYPTO;
             case WidgetSectionAdapter.TYPE_VIETNAM_CALENDAR: return ID_VIETNAM_CALENDAR;
             default:
-                for (WidgetAddon a : getInstalledAddons()) {
-                    if (getWidgetTypeForId(a.getId()) == type) {
-                        return a.getId();
-                    }
-                }
-                return null;
+                ensureCacheLoaded();
+                WidgetAddon addon = cachedTypeToAddonMap.get(type);
+                return addon != null ? addon.getId() : null;
+        }
+    }
+
+    /**
+     * Retrieves WidgetAddon by integer widget type directly in O(1).
+     */
+    public synchronized WidgetAddon getAddonForWidgetType(int type) {
+        ensureCacheLoaded();
+        return cachedTypeToAddonMap.get(type);
+    }
+
+    /**
+     * Batch enables or disables addons according to a predicate rule.
+     * Executes a single JSON serialization and single notification.
+     */
+    public synchronized void setAddonsEnabledBatch(Predicate<WidgetAddon> rule) {
+        if (rule == null) return;
+        ensureCacheLoaded();
+        boolean changed = false;
+        for (WidgetAddon a : cachedInstalledAddons) {
+            boolean shouldEnable = rule.test(a);
+            if (a.isEnabled() != shouldEnable) {
+                a.setEnabled(shouldEnable);
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveInstalledAddons(cachedInstalledAddons);
+            notifyListeners();
         }
     }
 
@@ -232,6 +282,7 @@ public final class WidgetAddonManager {
     }
 
     private synchronized void saveInstalledAddons(List<WidgetAddon> list) {
+        rebuildCacheLocked(list);
         JSONArray arr = new JSONArray();
         for (WidgetAddon a : list) {
             arr.put(a.toJson());
@@ -294,6 +345,7 @@ public final class WidgetAddonManager {
     }
 
     public synchronized void saveOrderFromList(List<WidgetAddon> list) {
+        rebuildCacheLocked(list);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < list.size(); i++) {
             if (i > 0) sb.append(",");
@@ -356,7 +408,8 @@ public final class WidgetAddonManager {
      */
     public void fetchStoreCatalog(CatalogCallback callback) {
         // 1. Deliver local default or cached catalog immediately
-        List<WidgetAddon> instantCatalog = parseCatalogJson(prefs.getString(KEY_CATALOG_CACHE, null));
+        String cachedJson = prefs.getString(KEY_CATALOG_CACHE, null);
+        List<WidgetAddon> instantCatalog = parseCatalogJson(cachedJson);
         if (instantCatalog.isEmpty()) {
             instantCatalog = buildDefaultStoreCatalog();
         }
@@ -366,11 +419,23 @@ public final class WidgetAddonManager {
 
         // 2. Fetch remote update in background
         executor.execute(() -> {
-            String baseUrl = "https://nexttv.vixlab.workers.dev";
+            String baseUrl;
+            try {
+                baseUrl = com.next.tv.launcher.security.NativeSecurityBridge.getProxyBaseUrl(context);
+            } catch (Throwable ignored) {
+                baseUrl = null;
+            }
+            if (baseUrl == null || baseUrl.isEmpty()) {
+                baseUrl = "https://nexttv.vixlab.workers.dev";
+            }
             String url = baseUrl + "/api/v1/addons/store";
             String rawJson = WidgetProtocolEngine.getInstance(context).safeHttpGet(url, 0, "manifest");
-            if (rawJson != null && !rawJson.isEmpty()) {
+            if (rawJson != null && !rawJson.isEmpty() && !rawJson.equals(cachedJson)) {
                 prefs.edit().putString(KEY_CATALOG_CACHE, rawJson).apply();
+                List<WidgetAddon> freshCatalog = parseCatalogJson(rawJson);
+                if (!freshCatalog.isEmpty() && callback != null) {
+                    mainHandler.post(() -> callback.onCatalogLoaded(freshCatalog, true));
+                }
             }
         });
     }

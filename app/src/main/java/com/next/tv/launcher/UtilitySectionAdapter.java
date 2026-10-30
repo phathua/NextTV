@@ -89,7 +89,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
     private final LayoutInflater inflater;
     private final AppLockManager lockManager;
     private final OnUtilityFocusListener focusListener;
-    private final OnKidModeToggledListener kidModeListener;
     private OnKidModeRequestedListener kidModeRequestListener;
     private final OnManageHiddenAppsRequestedListener hiddenAppsListener;
     private final OnRemoteControlRequestedListener remoteControlListener;
@@ -102,29 +101,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
 
     public UtilitySectionAdapter(Context context,
                                  OnUtilityFocusListener focusListener,
-                                 OnKidModeToggledListener kidModeListener,
-                                 OnManageHiddenAppsRequestedListener hiddenAppsListener,
-                                 OnRemoteControlRequestedListener remoteControlListener,
-                                 OnRemoteFileRequestedListener remoteFileListener,
-                                 OnWallpaperPickerRequestedListener wallpaperPickerListener) {
-        this(context, focusListener, kidModeListener, hiddenAppsListener, remoteControlListener, remoteFileListener, wallpaperPickerListener, null, null, null);
-    }
-
-    public UtilitySectionAdapter(Context context,
-                                 OnUtilityFocusListener focusListener,
-                                 OnKidModeToggledListener kidModeListener,
-                                 OnManageHiddenAppsRequestedListener hiddenAppsListener,
-                                 OnRemoteControlRequestedListener remoteControlListener,
-                                 OnRemoteFileRequestedListener remoteFileListener,
-                                 OnWallpaperPickerRequestedListener wallpaperPickerListener,
-                                 OnWidgetManagerRequestedListener widgetManagerListener,
-                                 OnReorderSectionsRequestedListener reorderSectionsListener) {
-        this(context, focusListener, kidModeListener, hiddenAppsListener, remoteControlListener, remoteFileListener, wallpaperPickerListener, widgetManagerListener, reorderSectionsListener, null);
-    }
-
-    public UtilitySectionAdapter(Context context,
-                                 OnUtilityFocusListener focusListener,
-                                 OnKidModeToggledListener kidModeListener,
                                  OnManageHiddenAppsRequestedListener hiddenAppsListener,
                                  OnRemoteControlRequestedListener remoteControlListener,
                                  OnRemoteFileRequestedListener remoteFileListener,
@@ -136,7 +112,6 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
         this.inflater = LayoutInflater.from(context);
         this.lockManager = AppLockManager.getInstance(context);
         this.focusListener = focusListener;
-        this.kidModeListener = kidModeListener;
         this.hiddenAppsListener = hiddenAppsListener;
         this.remoteControlListener = remoteControlListener;
         this.remoteFileListener = remoteFileListener;

@@ -70,6 +70,8 @@ public final class AdvancedSettingsDrawer {
     private View itemReducedMotion;
     private View itemDeviceInfo;
     private AddonConfigServer addonConfigServer;
+    private Bitmap qrBitmap;
+    private ImageView ivQr;
     private int movingWidgetIndex = -1;
 
     public AdvancedSettingsDrawer(Activity activity, OnAdvancedActionsListener listener) {
@@ -342,6 +344,16 @@ public final class AdvancedSettingsDrawer {
     }
 
     private void stopConfigServer() {
+        if (ivQr != null) {
+            ivQr.setImageBitmap(null);
+            ivQr = null;
+        }
+        if (qrBitmap != null) {
+            if (!qrBitmap.isRecycled()) {
+                qrBitmap.recycle();
+            }
+            qrBitmap = null;
+        }
         if (addonConfigServer != null) {
             addonConfigServer.stopSafe();
             addonConfigServer = null;
@@ -796,6 +808,8 @@ public final class AdvancedSettingsDrawer {
         // Start config server
         stopConfigServer();
         addonConfigServer = new AddonConfigServer(activity);
+        String sessionToken = String.format(java.util.Locale.US, "%06d", new java.util.Random().nextInt(900000) + 100000);
+        addonConfigServer.setSessionToken(sessionToken);
         addonConfigServer.setEventListener(action -> {
             notifyWidgetsChanged();
             Toast.makeText(activity, "Điện thoại đã cập nhật tiện ích", Toast.LENGTH_SHORT).show();
@@ -805,7 +819,7 @@ public final class AdvancedSettingsDrawer {
         String ip = DeviceIpAddress.get(activity);
         int port = addonConfigServer.getListeningPort();
         if (port <= 0) port = 8888;
-        String serverUrl = "http://" + ip + ":" + port;
+        String serverUrl = "http://" + ip + ":" + port + "/?token=" + sessionToken;
 
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -819,12 +833,12 @@ public final class AdvancedSettingsDrawer {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         card.setLayoutParams(lpCard);
 
-        ImageView ivQr = new ImageView(activity);
+        ivQr = new ImageView(activity);
         int qrSize = (int) (220 * density);
         LinearLayout.LayoutParams lpQr = new LinearLayout.LayoutParams(qrSize, qrSize);
         ivQr.setLayoutParams(lpQr);
 
-        Bitmap qrBitmap = QrCodeGenerator.generate(serverUrl, qrSize);
+        qrBitmap = QrCodeGenerator.generate(serverUrl, qrSize);
         if (qrBitmap != null) {
             ivQr.setImageBitmap(qrBitmap);
         }
@@ -866,7 +880,7 @@ public final class AdvancedSettingsDrawer {
     private void showAddonUrlDialog() {
         float density = activity.getResources().getDisplayMetrics().density;
         EditText input = new EditText(activity);
-        input.setHint("https://example.com/manifest.json");
+        input.setHint("https://example.com/cau-hinh.json");
         input.setTextColor(Color.WHITE);
         input.setHintTextColor(Color.parseColor("#71717A"));
         input.setTextSize(13f);
@@ -874,7 +888,7 @@ public final class AdvancedSettingsDrawer {
 
         new AlertDialog.Builder(activity, R.style.Theme_TvHome)
                 .setTitle("Thêm tiện ích từ liên kết")
-                .setMessage("Nhập đường dẫn cấu hình tiện ích (JSON):")
+                .setMessage("Nhập liên kết tệp cấu hình tiện ích:")
                 .setView(input)
                 .setPositiveButton("Cài đặt", (dialog, which) -> {
                     String url = input.getText().toString().trim();

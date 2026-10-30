@@ -149,24 +149,77 @@ public final class WidgetProtocolEngine {
         String endpointUrl = baseUrl + "/api/v1/widgets/batch?ids=" + idsParam + "&sport=" + sport + locParams;
 
         String rawJson = safeHttpGet(endpointUrl, 0);
-        if (rawJson == null || rawJson.isEmpty()) {
-            return getCachedBatchJson();
+        JSONObject widgets = null;
+        if (rawJson != null && !rawJson.isEmpty()) {
+            try {
+                JSONObject root = new JSONObject(rawJson);
+                widgets = root.optJSONObject("widgets");
+            } catch (Exception e) {
+                Log.e(TAG, "Failed parsing batch JSON response: " + e.getMessage());
+            }
+        }
+        if (widgets == null) {
+            widgets = getCachedBatchJson();
+        }
+        if (widgets == null) {
+            widgets = new JSONObject();
         }
 
+        // Fetch external third-party addons
+        fetchExternalAddonsSync(widgets);
+
+        // Cache the combined widgets
         try {
-            JSONObject root = new JSONObject(rawJson);
-            JSONObject widgets = root.optJSONObject("widgets");
-            if (widgets != null) {
-                prefs.edit()
-                        .putString(KEY_BATCH_CACHE, rawJson)
-                        .putLong(KEY_BATCH_TIMESTAMP, System.currentTimeMillis())
-                        .apply();
-                return widgets;
+            JSONObject cacheRoot = new JSONObject();
+            cacheRoot.put("widgets", widgets);
+            prefs.edit()
+                    .putString(KEY_BATCH_CACHE, cacheRoot.toString())
+                    .putLong(KEY_BATCH_TIMESTAMP, System.currentTimeMillis())
+                    .apply();
+        } catch (Exception ignored) {}
+
+        return widgets;
+    }
+
+    /**
+     * Fetches real-time data from external third-party addons (type >= 100).
+     * External endpoints are called without internal APK HMAC signing to prevent secret leakage.
+     */
+    private void fetchExternalAddonsSync(JSONObject widgets) {
+        if (widgets == null) return;
+        try {
+            List<WidgetAddon> addons = WidgetAddonManager.getInstance(context).getInstalledAddons();
+            for (WidgetAddon addon : addons) {
+                if (!addon.isEnabled()) continue;
+                int type = WidgetAddonManager.getWidgetTypeForId(addon.getId());
+                if (type < 100) continue;
+
+                String endpoint = addon.getEndpoint();
+                if (endpoint == null || endpoint.trim().isEmpty()) continue;
+                String targetUrl = endpoint.trim();
+
+                // If endpoint is relative, resolve with manifest URL host
+                if (targetUrl.startsWith("/") && addon.getManifestUrl() != null && !addon.getManifestUrl().isEmpty()) {
+                    try {
+                        URL baseManifest = new URL(addon.getManifestUrl());
+                        targetUrl = new URL(baseManifest, targetUrl).toString();
+                    } catch (Exception ignored) {}
+                }
+
+                // Fetch data without signing
+                String res = safeHttpGet(targetUrl, 0, null);
+                if (res != null && !res.trim().isEmpty()) {
+                    try {
+                        JSONObject customObj = new JSONObject(res);
+                        widgets.put(addon.getId(), customObj);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Invalid JSON from external addon " + addon.getId() + ": " + e.getMessage());
+                    }
+                }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed parsing batch JSON response: " + e.getMessage());
+        } catch (Throwable t) {
+            Log.w(TAG, "Error fetching external addons: " + t.getMessage());
         }
-        return getCachedBatchJson();
     }
 
     /**

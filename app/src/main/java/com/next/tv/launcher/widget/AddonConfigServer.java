@@ -32,6 +32,7 @@ public final class AddonConfigServer extends NanoHTTPD {
     private final Handler mainHandler;
     private OnServerEventListener eventListener;
     private List<WidgetAddon> cachedStoreCatalog = new ArrayList<>();
+    private volatile String sessionToken = null;
 
     public AddonConfigServer(Context context) {
         this(context, DEFAULT_PORT);
@@ -42,6 +43,10 @@ public final class AddonConfigServer extends NanoHTTPD {
         this.context = context.getApplicationContext();
         this.addonManager = WidgetAddonManager.getInstance(context);
         this.mainHandler = new Handler(Looper.getMainLooper());
+    }
+
+    public void setSessionToken(String token) {
+        this.sessionToken = token;
     }
 
     public void setEventListener(OnServerEventListener listener) {
@@ -72,6 +77,17 @@ public final class AddonConfigServer extends NanoHTTPD {
 
     @Override
     public Response serve(IHTTPSession session) {
+        // Enforce session token validation if token is set
+        if (sessionToken != null && !sessionToken.isEmpty()) {
+            String clientToken = session.getParms() != null ? session.getParms().get("token") : null;
+            if (clientToken == null && session.getHeaders() != null) {
+                clientToken = session.getHeaders().get("x-session-token");
+            }
+            if (!sessionToken.equals(clientToken)) {
+                return newFixedLengthResponse(Response.Status.FORBIDDEN, "text/plain; charset=utf-8", "Yêu cầu không có thẩm quyền hoặc mã phiên đã hết hạn. Vui lòng quét lại mã QR trên màn hình TV.");
+            }
+        }
+
         String uri = session.getUri();
         Method method = session.getMethod();
 

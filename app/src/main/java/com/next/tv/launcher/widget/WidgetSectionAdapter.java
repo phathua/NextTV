@@ -181,6 +181,21 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
         if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
     }
 
+    public void setCustomAddonData(int type, org.json.JSONObject data) {
+        if (data != null) {
+            customAddonsData.put(type, data);
+            int idx = activeTypes.indexOf(type);
+            if (idx >= 0) notifyItemChanged(idx, PAYLOAD_DATA_UPDATE);
+        }
+    }
+
+    public void setCustomAddonData(String addonId, org.json.JSONObject data) {
+        if (addonId != null && data != null) {
+            int dynType = WidgetAddonManager.getWidgetTypeForId(addonId);
+            setCustomAddonData(dynType, data);
+        }
+    }
+
     /**
      * Applies normalized NWP-1 Batch Feed JSON directly from WidgetProtocolEngine.
      */
@@ -1680,19 +1695,10 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
                 renderHeroMetricCard("Lịch Âm Dương", calendarData, R.drawable.bg_weather_clear, "Âm lịch Việt Nam");
             } else if (type >= 100) {
                 org.json.JSONObject customData = customAddonsData.get(type);
-                String customTitle = "Tiện ích mở rộng";
-                WidgetAddon addon = null;
-                String addonId = WidgetAddonManager.getInstance(context).getIdForWidgetType(type);
-                if (addonId != null) {
-                    for (WidgetAddon a : WidgetAddonManager.getInstance(context).getInstalledAddons()) {
-                        if (a.getId().equalsIgnoreCase(addonId)) {
-                            addon = a;
-                            customTitle = a.getName();
-                            break;
-                        }
-                    }
-                }
-                renderHeroMetricCard(customTitle, customData, R.drawable.bg_weather_clouds, addon != null ? addon.getDescription() : "Tiện ích mở rộng");
+                WidgetAddon addon = WidgetAddonManager.getInstance(context).getAddonForWidgetType(type);
+                String customTitle = (addon != null && !addon.getName().isEmpty()) ? addon.getName() : "Tiện ích mở rộng";
+                String customDesc = (addon != null && !addon.getDescription().isEmpty()) ? addon.getDescription() : "Tiện ích mở rộng";
+                renderHeroMetricCard(customTitle, customData, R.drawable.bg_weather_clouds, customDesc);
             }
         }
 

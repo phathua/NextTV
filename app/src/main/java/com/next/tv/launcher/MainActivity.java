@@ -115,9 +115,6 @@ import com.next.tv.launcher.remote.RemoteControlDrawer;
 import com.next.tv.launcher.remote.RemoteFileDrawer;
 import com.next.tv.launcher.wallpaper.WallpaperPickerDrawer;
 import com.next.tv.launcher.widget.WidgetSectionAdapter;
-import com.next.tv.launcher.lock.AppLockManager;
-import com.next.tv.launcher.lock.PinLockDialog;
-import com.next.tv.launcher.lock.RemoteLockServer;
 import com.next.tv.launcher.clean.BackgroundAppCleaner;
 import com.next.tv.launcher.utility.AdvancedSettingsDrawer;
 import com.next.tv.launcher.widget.WidgetConfigManager;
@@ -3217,6 +3214,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         widgetAdapter.setUsageData(usageTracker.getTodayUsage());
         widgetAdapter.setMediaData(mediaTracker.getPlaybackInfo());
 
+        com.next.tv.launcher.widget.WidgetAddonManager.getInstance(this).addListener(() -> {
+            if (widgetAdapter != null) {
+                widgetAdapter.rebuildActiveTypes();
+                refreshWidgetsBackground();
+            }
+        });
+
         refreshWidgetsBackground();
     }
 
@@ -3509,10 +3513,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 cardView -> {
                     hideGlass();
                     ensureSectionVisible(utilityRecyclerView, false);
-                },
-                isActive -> {
-                    updateKidModeUiState();
-                    reloadApps(false);
                 },
                 this::showHiddenAppsManagerDialog,
                 this::showRemoteControlDrawer,
@@ -4035,8 +4035,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             TextView btnToggleSection = secView.findViewById(R.id.btnToggleSection);
             if (btnMoveSection != null) btnMoveSection.setFocusable(false);
             if (btnToggleSection != null) btnToggleSection.setFocusable(false);
-            View leftActionsPanel = secView.findViewById(R.id.leftActionsPanel);
-            View sectionContent = secView.findViewById(R.id.sectionContent);
 
             boolean isEnabled = sectionConfig.isSectionEnabled(sec.id);
             if (!isEnabled) {

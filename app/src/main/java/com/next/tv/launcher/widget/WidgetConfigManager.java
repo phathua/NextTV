@@ -12,7 +12,6 @@ import java.util.List;
  */
 public final class WidgetConfigManager {
     private static WidgetConfigManager instance;
-    private final Context context;
     private final WidgetAddonManager addonManager;
 
     public static synchronized WidgetConfigManager getInstance(Context context) {
@@ -23,7 +22,6 @@ public final class WidgetConfigManager {
     }
 
     private WidgetConfigManager(Context context) {
-        this.context = context;
         this.addonManager = WidgetAddonManager.getInstance(context);
     }
 
@@ -49,18 +47,6 @@ public final class WidgetConfigManager {
 
     public boolean isFootballEnabled() {
         return addonManager.isAddonEnabled(WidgetAddonManager.ID_SPORTS);
-    }
-
-    public boolean isGoldEnabled() {
-        return addonManager.isAddonEnabled(WidgetAddonManager.ID_GOLD);
-    }
-
-    public boolean isCryptoEnabled() {
-        return addonManager.isAddonEnabled(WidgetAddonManager.ID_CRYPTO);
-    }
-
-    public boolean isCalendarEnabled() {
-        return addonManager.isAddonEnabled(WidgetAddonManager.ID_VIETNAM_CALENDAR);
     }
 
     public void setWeatherEnabled(boolean enabled) {
@@ -100,24 +86,19 @@ public final class WidgetConfigManager {
     }
 
     public void disableAllWidgets() {
-        for (WidgetAddon a : addonManager.getInstalledAddons()) {
-            addonManager.toggleAddon(a.getId(), false);
-        }
+        addonManager.setAddonsEnabledBatch(a -> false);
     }
 
     public void enableAllWidgets() {
-        for (WidgetAddon a : addonManager.getInstalledAddons()) {
-            addonManager.toggleAddon(a.getId(), true);
-        }
+        addonManager.setAddonsEnabledBatch(a -> true);
     }
 
     public void enableEssentialWidgetsOnly() {
-        for (WidgetAddon a : addonManager.getInstalledAddons()) {
-            boolean essential = WidgetAddonManager.ID_WEATHER.equals(a.getId())
-                    || WidgetAddonManager.ID_USAGE.equals(a.getId())
-                    || WidgetAddonManager.ID_MEDIA.equals(a.getId());
-            addonManager.toggleAddon(a.getId(), essential);
-        }
+        addonManager.setAddonsEnabledBatch(a ->
+                WidgetAddonManager.ID_WEATHER.equals(a.getId())
+                        || WidgetAddonManager.ID_USAGE.equals(a.getId())
+                        || WidgetAddonManager.ID_MEDIA.equals(a.getId())
+        );
     }
 
     /**
@@ -137,37 +118,24 @@ public final class WidgetConfigManager {
         return list;
     }
 
-    public void moveWidgetOrder(int fromIndex, int toIndex, boolean isMediaPlaying) {
-        List<Integer> active = getActiveWidgetTypes(isMediaPlaying);
-        if (fromIndex < 0 || fromIndex >= active.size() || toIndex < 0 || toIndex >= active.size()) return;
-        int item = active.remove(fromIndex);
-        active.add(toIndex, item);
-        saveWidgetOrder(active);
-    }
-
     public void saveWidgetOrder(List<Integer> activeOrder) {
         if (activeOrder == null || activeOrder.isEmpty()) return;
         List<WidgetAddon> installed = addonManager.getInstalledAddons();
-        List<WidgetAddon> reordered = new ArrayList<>();
+        java.util.Map<String, WidgetAddon> map = new java.util.LinkedHashMap<>();
+        for (WidgetAddon a : installed) {
+            map.put(a.getId(), a);
+        }
 
+        List<WidgetAddon> reordered = new ArrayList<>();
         for (int type : activeOrder) {
             String id = addonManager.getIdForWidgetType(type);
-            if (id != null) {
-                for (WidgetAddon a : installed) {
-                    if (a.getId().equalsIgnoreCase(id) && !reordered.contains(a)) {
-                        reordered.add(a);
-                        break;
-                    }
-                }
+            if (id != null && map.containsKey(id)) {
+                reordered.add(map.remove(id));
             }
         }
 
         // Keep disabled or remaining addons in order
-        for (WidgetAddon a : installed) {
-            if (!reordered.contains(a)) {
-                reordered.add(a);
-            }
-        }
+        reordered.addAll(map.values());
         addonManager.saveOrderFromList(reordered);
     }
 }

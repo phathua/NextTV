@@ -182,8 +182,8 @@ public final class AddonWebPage {
                 "  <div id=\"tab-url\" style=\"display:none;\">\n" +
                 "    <div class=\"card\" style=\"flex-direction:column; align-items:stretch;\">\n" +
                 "      <div class=\"input-group\">\n" +
-                "        <label style=\"font-size:13px; font-weight:600; color:#E4E4E7;\">Địa chỉ liên kết Manifest (JSON)</label>\n" +
-                "        <input type=\"url\" id=\"manifestUrl\" placeholder=\"https://example.com/manifest.json\" autocomplete=\"off\">\n" +
+                "        <label style=\"font-size:13px; font-weight:600; color:#E4E4E7;\">Địa chỉ liên kết tệp cấu hình</label>\n" +
+                "        <input type=\"url\" id=\"manifestUrl\" placeholder=\"https://example.com/cau-hinh.json\" autocomplete=\"off\">\n" +
                 "      </div>\n" +
                 "      <button class=\"btn btn-primary\" style=\"width:100%;\" onclick=\"installUrl()\">Cài đặt tiện ích</button>\n" +
                 "    </div>\n" +
@@ -192,6 +192,19 @@ public final class AddonWebPage {
                 "  <div id=\"toast\" class=\"toast\"></div>\n" +
                 "\n" +
                 "  <script>\n" +
+                "    const sessionToken = new URLSearchParams(window.location.search).get('token') || '';\n" +
+                "    function apiUrl(path) {\n" +
+                "      return sessionToken ? (path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(sessionToken)) : path;\n" +
+                "    }\n" +
+                "    function escapeHtml(str) {\n" +
+                "      if (str === null || str === undefined) return '';\n" +
+                "      return String(str)\n" +
+                "        .replace(/&/g, '&amp;')\n" +
+                "        .replace(/</g, '&lt;')\n" +
+                "        .replace(/>/g, '&gt;')\n" +
+                "        .replace(/\"/g, '&quot;')\n" +
+                "        .replace(/'/g, '&#39;');\n" +
+                "    }\n" +
                 "    let state = { installed: [], store: [] };\n" +
                 "    function showToast(msg) {\n" +
                 "      const t = document.getElementById('toast');\n" +
@@ -209,7 +222,11 @@ public final class AddonWebPage {
                 "    }\n" +
                 "    async function loadState() {\n" +
                 "      try {\n" +
-                "        const res = await fetch('/api/state');\n" +
+                "        const res = await fetch(apiUrl('/api/state'));\n" +
+                "        if (!res.ok) {\n" +
+                "          showToast('Mã phiên không hợp lệ hoặc đã hết hạn');\n" +
+                "          return;\n" +
+                "        }\n" +
                 "        state = await res.json();\n" +
                 "        renderInstalled();\n" +
                 "        renderStore();\n" +
@@ -225,20 +242,20 @@ public final class AddonWebPage {
                 "        <div class=\"card\">\n" +
                 "          <div class=\"card-info\">\n" +
                 "            <div class=\"card-title\">\n" +
-                "              ${item.name}\n" +
+                "              ${escapeHtml(item.name)}\n" +
                 "              <span class=\"badge ${item.isBuiltIn ? '' : 'addon'}\">${item.isBuiltIn ? 'Mặc định' : 'Mở rộng'}</span>\n" +
                 "            </div>\n" +
-                "            <div class=\"card-desc\">${item.description || item.author || ''}</div>\n" +
+                "            <div class=\"card-desc\">${escapeHtml(item.description || item.author || '')}</div>\n" +
                 "          </div>\n" +
                 "          <div style=\"display:flex; align-items:center;\">\n" +
                 "            <div class=\"reorder-btns\">\n" +
                 "              <button class=\"reorder-btn\" onclick=\"moveItem(${idx}, -1)\">▲</button>\n" +
                 "              <button class=\"reorder-btn\" onclick=\"moveItem(${idx}, 1)\">▼</button>\n" +
                 "            </div>\n" +
-                "            <button class=\"btn ${item.isEnabled ? 'btn-toggle-on' : 'btn-toggle-off'}\" onclick=\"toggleItem('${item.id}', ${!item.isEnabled})\">\n" +
+                "            <button class=\"btn ${item.isEnabled ? 'btn-toggle-on' : 'btn-toggle-off'}\" data-id=\"${escapeHtml(item.id)}\" onclick=\"toggleItem(this.getAttribute('data-id'), ${!item.isEnabled})\">\n" +
                 "              ${item.isEnabled ? 'Bật' : 'Tắt'}\n" +
                 "            </button>\n" +
-                "            ${!item.isBuiltIn ? `<button class=\"btn btn-danger\" style=\"margin-left:6px;\" onclick=\"uninstallItem('${item.id}')\">Gỡ</button>` : ''}\n" +
+                "            ${!item.isBuiltIn ? `<button class=\"btn btn-danger\" style=\"margin-left:6px;\" data-id=\"${escapeHtml(item.id)}\" onclick=\"uninstallItem(this.getAttribute('data-id'))\">Gỡ</button>` : ''}\n" +
                 "          </div>\n" +
                 "        </div>\n" +
                 "      `).join('');\n" +
@@ -255,15 +272,15 @@ public final class AddonWebPage {
                 "          <div class=\"card\">\n" +
                 "            <div class=\"card-info\">\n" +
                 "              <div class=\"card-title\">\n" +
-                "                ${item.name}\n" +
-                "                <span class=\"badge\">${item.version}</span>\n" +
+                "                ${escapeHtml(item.name)}\n" +
+                "                <span class=\"badge\">${escapeHtml(item.version)}</span>\n" +
                 "              </div>\n" +
-                "              <div class=\"card-desc\">${item.description || item.author}</div>\n" +
+                "              <div class=\"card-desc\">${escapeHtml(item.description || item.author || '')}</div>\n" +
                 "            </div>\n" +
                 "            <div>\n" +
                 "              ${isInst ?\n" +
-                "                `<button class=\"btn btn-secondary\" disabled>Đã cài</button>` :\n" +
-                "                `<button class=\"btn btn-primary\" onclick=\"installStoreItem('${item.id}')\">Cài đặt</button>`\n" +
+                "                '<button class=\"btn btn-secondary\" disabled>Đã cài</button>' :\n" +
+                "                `<button class=\"btn btn-primary\" data-id=\"${escapeHtml(item.id)}\" onclick=\"installStoreItem(this.getAttribute('data-id'))\">Cài đặt</button>`\n" +
                 "              }\n" +
                 "            </div>\n" +
                 "          </div>\n" +
@@ -271,7 +288,7 @@ public final class AddonWebPage {
                 "      }).join('');\n" +
                 "    }\n" +
                 "    async function toggleItem(id, enabled) {\n" +
-                "      await fetch('/api/addons/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, enabled }) });\n" +
+                "      await fetch(apiUrl('/api/addons/toggle'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, enabled }) });\n" +
                 "      showToast(enabled ? 'Đã bật trên TV' : 'Đã tắt trên TV');\n" +
                 "      loadState();\n" +
                 "    }\n" +
@@ -281,27 +298,27 @@ public final class AddonWebPage {
                 "      const item = state.installed.splice(index, 1)[0];\n" +
                 "      state.installed.splice(target, 0, item);\n" +
                 "      const order = state.installed.map(a => a.id);\n" +
-                "      await fetch('/api/addons/reorder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ order }) });\n" +
+                "      await fetch(apiUrl('/api/addons/reorder'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ order }) });\n" +
                 "      showToast('Đã lưu thứ tự trên TV');\n" +
                 "      renderInstalled();\n" +
                 "    }\n" +
                 "    async function uninstallItem(id) {\n" +
                 "      if (!confirm('Gỡ tiện ích này khỏi TV?')) return;\n" +
-                "      await fetch('/api/addons/uninstall', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });\n" +
+                "      await fetch(apiUrl('/api/addons/uninstall'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });\n" +
                 "      showToast('Đã gỡ tiện ích');\n" +
                 "      loadState();\n" +
                 "    }\n" +
                 "    async function installStoreItem(id) {\n" +
                 "      const item = state.store.find(a => a.id === id);\n" +
                 "      if (!item) return;\n" +
-                "      await fetch('/api/addons/install', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) });\n" +
+                "      await fetch(apiUrl('/api/addons/install'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(item) });\n" +
                 "      showToast('Đã cài đặt lên TV');\n" +
                 "      loadState();\n" +
                 "    }\n" +
                 "    async function installUrl() {\n" +
                 "      const url = document.getElementById('manifestUrl').value.trim();\n" +
                 "      if (!url) { alert('Vui lòng nhập đường dẫn liên kết'); return; }\n" +
-                "      const res = await fetch('/api/addons/url', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });\n" +
+                "      const res = await fetch(apiUrl('/api/addons/url'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });\n" +
                 "      const data = await res.json();\n" +
                 "      if (data.success) {\n" +
                 "        showToast('Đã cài đặt thành công');\n" +
