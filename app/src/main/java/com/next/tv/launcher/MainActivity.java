@@ -3515,7 +3515,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 this::showRemoteFileDrawer,
                 this::showWallpaperPicker,
                 () -> new com.next.tv.launcher.widget.WidgetManagerDialog(this, () -> {
-                    if (widgetAdapter != null) widgetAdapter.rebuildActiveTypes();
+                    if (widgetAdapter != null) {
+                        widgetAdapter.rebuildActiveTypes();
+                        refreshWidgetsBackground();
+                    }
                 }).show(),
                 () -> enterSectionManagement(null),
                 this::showAdvancedSettingsDrawer);
@@ -3574,7 +3577,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             advancedSettingsDrawer = new AdvancedSettingsDrawer(this, new AdvancedSettingsDrawer.OnAdvancedActionsListener() {
                 @Override
                 public void onManageWidgets() {
-                    if (widgetAdapter != null) widgetAdapter.rebuildActiveTypes();
+                    if (widgetAdapter != null) {
+                        widgetAdapter.rebuildActiveTypes();
+                        refreshWidgetsBackground();
+                    }
                 }
 
                 @Override

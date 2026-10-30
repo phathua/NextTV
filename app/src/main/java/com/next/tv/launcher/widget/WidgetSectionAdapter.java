@@ -50,6 +50,9 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
     public static final int TYPE_MEDIA = 3;
     public static final int TYPE_YOUTUBE = 4;
     public static final int TYPE_FOOTBALL = 5;
+    public static final int TYPE_GOLD = 6;
+    public static final int TYPE_CRYPTO = 7;
+    public static final int TYPE_VIETNAM_CALENDAR = 8;
 
     public static final String PAYLOAD_DATA_UPDATE = "payload_data_update";
 
@@ -83,6 +86,9 @@ public final class WidgetSectionAdapter extends RecyclerView.Adapter<WidgetSecti
 
     private boolean isMoveMode = false;
     private int currentMovePos = -1;
+    private org.json.JSONObject goldData;
+    private org.json.JSONObject cryptoData;
+    private org.json.JSONObject calendarData;
     private int originalMovePos = -1;
     private List<Integer> originalOrderBackup = null;
     private android.animation.ObjectAnimator pulseAnimator = null;

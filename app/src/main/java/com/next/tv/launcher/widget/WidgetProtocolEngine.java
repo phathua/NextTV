@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -134,7 +135,18 @@ public final class WidgetProtocolEngine {
             }
         } catch (Throwable ignored) {}
 
-        String endpointUrl = baseUrl + "/api/v1/widgets/batch?ids=weather,sports,news,youtube&sport=" + sport + locParams;
+        List<String> enabledIds = WidgetAddonManager.getInstance(context).getActiveEnabledAddonIds();
+        String idsParam = "weather,sports,news,youtube";
+        if (enabledIds != null && !enabledIds.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < enabledIds.size(); i++) {
+                if (i > 0) sb.append(",");
+                sb.append(enabledIds.get(i));
+            }
+            idsParam = sb.toString();
+        }
+
+        String endpointUrl = baseUrl + "/api/v1/widgets/batch?ids=" + idsParam + "&sport=" + sport + locParams;
 
         String rawJson = safeHttpGet(endpointUrl, 0);
         if (rawJson == null || rawJson.isEmpty()) {
@@ -160,7 +172,7 @@ public final class WidgetProtocolEngine {
     /**
      * Safe HTTP GET with SSRF filtering, redirect validation, and 256 KB response cap.
      */
-    private String safeHttpGet(String urlStr, int hopCount) {
+    public String safeHttpGet(String urlStr, int hopCount) {
         if (hopCount > MAX_REDIRECT_HOPS) {
             Log.w(TAG, "Exceeded maximum redirect hops: " + urlStr);
             return null;

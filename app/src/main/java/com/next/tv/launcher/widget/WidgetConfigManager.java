@@ -113,7 +113,7 @@ public final class WidgetConfigManager {
 
     public List<Integer> getActiveWidgetTypes(boolean isMediaPlaying) {
         List<Integer> list = new ArrayList<>();
-        String orderStr = prefs.getString(KEY_ORDER, "0,3,4,1,2,5");
+        String orderStr = prefs.getString(KEY_ORDER, "0,3,4,1,2,5,6,7,8");
         if (!orderStr.contains("5")) {
             orderStr = orderStr + ",5";
             prefs.edit().putString(KEY_ORDER, orderStr).apply();
@@ -152,7 +152,7 @@ public final class WidgetConfigManager {
             sb.append(active.get(i));
         }
         // Append disabled types to keep them in order string
-        int[] all = {0, 3, 4, 1, 2, 5};
+        int[] all = {0, 3, 4, 1, 2, 5, 6, 7, 8};
         for (int t : all) {
             if (!active.contains(t)) {
                 sb.append(",").append(t);
@@ -167,7 +167,7 @@ public final class WidgetConfigManager {
             if (i > 0) sb.append(",");
             sb.append(activeOrder.get(i));
         }
-        int[] all = {0, 3, 4, 1, 2, 5};
+        int[] all = {0, 3, 4, 1, 2, 5, 6, 7, 8};
         for (int t : all) {
             if (!activeOrder.contains(t)) {
                 sb.append(",").append(t);

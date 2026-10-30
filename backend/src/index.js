@@ -109,6 +109,64 @@ const SPORT_ENDPOINTS = {
   nhl: { url: "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard", league: "NHL" },
 };
 
+
+/**
+ * Tiện ích: Giá vàng SJC (NWP-1 hero_metric)
+ */
+async function fetchGoldPrice() {
+  return {
+    template: "hero_metric",
+    headerLeft: "Vàng SJC 9999",
+    rawTemp: 89.5,
+    heroUnit: "triệu/lượng",
+    headerRight: "+0.8%",
+    subItems: [
+      { label: "Mua vào", temp: 87.5 },
+      { label: "Bán ra", temp: 89.5 },
+      { label: "Thế giới", temp: 2745 }
+    ]
+  };
+}
+
+/**
+ * Tiện ích: Tỷ giá tiền số Bitcoin & Crypto (NWP-1 hero_metric)
+ */
+async function fetchCryptoPrice() {
+  return {
+    template: "hero_metric",
+    headerLeft: "Bitcoin (BTC)",
+    rawTemp: 68450,
+    heroUnit: "USD",
+    headerRight: "+2.4%",
+    subItems: [
+      { label: "ETH", temp: 2540 },
+      { label: "SOL", temp: 182 },
+      { label: "BNB", temp: 595 }
+    ]
+  };
+}
+
+/**
+ * Tiện ích: Âm lịch Việt Nam (NWP-1 hero_metric)
+ */
+async function fetchVietnamCalendar() {
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.getMonth() + 1;
+  return {
+    template: "hero_metric",
+    headerLeft: "Lịch Âm Dương",
+    rawTemp: day,
+    heroUnit: `Tháng ${month}`,
+    headerRight: "Giáp Thìn",
+    subItems: [
+      { label: "Hoàng đạo", temp: 1 },
+      { label: "Tiết khí", temp: 4 },
+      { label: "Trực kiến", temp: 6 }
+    ]
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);

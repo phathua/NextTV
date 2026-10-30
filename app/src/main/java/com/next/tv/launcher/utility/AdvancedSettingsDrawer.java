@@ -25,6 +25,14 @@ import com.next.tv.launcher.TvRecommendationReader;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
 import com.next.tv.launcher.widget.WidgetConfigManager;
+import com.next.tv.launcher.widget.WidgetAddon;
+import com.next.tv.launcher.widget.WidgetAddonManager;
+import com.next.tv.launcher.widget.AddonConfigServer;
+import com.next.tv.launcher.widget.DeviceIpAddress;
+import com.next.tv.launcher.widget.QrCodeGenerator;
+import android.widget.EditText;
+import android.app.AlertDialog;
+import android.graphics.Bitmap;
 
 import java.util.List;
 
@@ -61,6 +69,8 @@ public final class AdvancedSettingsDrawer {
     private View itemReorderSections;
     private View itemReducedMotion;
     private View itemDeviceInfo;
+    private AddonConfigServer addonConfigServer;
+    private int movingWidgetIndex = -1;
 
     public AdvancedSettingsDrawer(Activity activity, OnAdvancedActionsListener listener) {
         this.activity = activity;
