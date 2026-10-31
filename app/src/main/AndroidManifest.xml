@@ -124,10 +124,8 @@
         </intent>
         <package android:name="com.teamsmart.videomanager.tv" />
         <package android:name="com.liskovsoft.videomanager" />
-        <package android:name="com.liskovsoft.smarttubetv.beta" />
         <package android:name="com.google.android.youtube.tv" />
         <package android:name="com.google.android.youtube" />
-        <package android:name="app.revanced.android.youtube" />
         <package android:name="vn.vtv.vtvgotv" />
         <package android:name="vn.mytvnet.b2cott" />
         <package android:name="com.kt.apps.media.xemtv.beta" />
@@ -261,19 +259,11 @@
         <!-- Ultra-lightweight native TV Web Browser with Spatial Navigation & AdBlock -->
         <activity
             android:name=".browser.WebBrowserActivity"
-            android:exported="true"
+            android:exported="false"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden|keyboard"
             android:hardwareAccelerated="true"
-            android:theme="@style/Theme.TvHome">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.TvHome" />
 
         <!-- 100% Native Pure Java Reader Mode (Zero WebView, < 5MB RAM) -->
         <activity

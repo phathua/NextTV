@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     NextTV Launcher - 1-Click Auto Build & Deploy to Android TV
 .DESCRIPTION
@@ -11,7 +11,9 @@ param(
     [switch]$SetDefaultHome,
     [switch]$SkipBuild,
     [ValidateSet('vi', 'en', 'auto')]
-    [string]$Lang = 'auto'
+    [string]$Lang = 'auto',
+    [ValidateSet('sideload', 'play')]
+    [string]$Flavor = 'sideload'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -228,34 +230,43 @@ try {
 
         Update-Status $msg.StepBuild "Cyan"
         $gradleCmd = "$repoRoot\gradlew.bat"
-        $buildOut = & $gradleCmd assembleRelease --console=plain 2>&1
+        $flavorCap = (Get-Culture).TextInfo.ToTitleCase($Flavor)
+        $buildTarget = "assemble${flavorCap}Release"
+        $buildOut = & $gradleCmd $buildTarget --console=plain 2>&1
         Log-Message ($buildOut | Out-String)
 
         if ($LASTEXITCODE -ne 0) {
             Update-Status $msg.GradleFailed "Yellow"
             & $gradleCmd --stop 2>$null | Out-Null
             Get-ChildItem -Path "$repoRoot\.gradle" -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-            $buildOutRetry = & $gradleCmd assembleRelease --no-daemon --console=plain 2>&1
+            $buildOutRetry = & $gradleCmd $buildTarget --no-daemon --console=plain 2>&1
             Log-Message ($buildOutRetry | Out-String)
             if ($LASTEXITCODE -ne 0) {
-                throw "Gradle assembleRelease failed! Check details in $logFile"
+                throw "Gradle $buildTarget failed! Check details in $logFile"
             }
         }
     }
 
     # 5. Select optimal APK based on TV ABI
-    $apkDir = Join-Path $repoRoot "app\build\outputs\apk\release"
+    $apkDir = Join-Path $repoRoot "app\build\outputs\apk\$Flavor\release"
+    if (-not (Test-Path $apkDir)) {
+        $apkDir = Join-Path $repoRoot "app\build\outputs\apk\release"
+    }
     $apk = $null
     $chosenType = "universal"
 
-    if ($deviceAbi -like "arm64*" -and (Test-Path "$apkDir\app-arm64-v8a-release.apk")) {
-        $apk = "$apkDir\app-arm64-v8a-release.apk"
+    $arm64Candidate = Get-ChildItem -Path $apkDir -Filter "*arm64*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $arm32Candidate = Get-ChildItem -Path $apkDir -Filter "*armeabi*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $uniCandidate = Get-ChildItem -Path $apkDir -Filter "*universal*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($deviceAbi -like "arm64*" -and $arm64Candidate) {
+        $apk = $arm64Candidate.FullName
         $chosenType = "arm64-v8a"
-    } elseif ($deviceAbi -like "armeabi*" -and (Test-Path "$apkDir\app-armeabi-v7a-release.apk")) {
-        $apk = "$apkDir\app-armeabi-v7a-release.apk"
+    } elseif ($deviceAbi -like "armeabi*" -and $arm32Candidate) {
+        $apk = $arm32Candidate.FullName
         $chosenType = "armeabi-v7a"
-    } elseif (Test-Path "$apkDir\app-universal-release.apk") {
-        $apk = "$apkDir\app-universal-release.apk"
+    } elseif ($uniCandidate) {
+        $apk = $uniCandidate.FullName
         $chosenType = "universal"
     } else {
         $firstApk = Get-ChildItem -Path $apkDir -Filter "*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1

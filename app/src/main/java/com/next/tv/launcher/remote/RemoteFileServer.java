@@ -79,9 +79,15 @@ public final class RemoteFileServer {
 
     public RemoteFileServer(Context context) {
         this.context = context.getApplicationContext();
-        File tvFiles = new File(Environment.getExternalStorageDirectory(), "TVFiles");
-        if (!tvFiles.exists()) tvFiles.mkdirs();
-        this.rootDir = Environment.getExternalStorageDirectory();
+        if (com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+            File tvFiles = new File(Environment.getExternalStorageDirectory(), "TVFiles");
+            if (!tvFiles.exists()) tvFiles.mkdirs();
+            this.rootDir = Environment.getExternalStorageDirectory();
+        } else {
+            File tvFiles = new File(this.context.getExternalFilesDir(null), "TVFiles");
+            if (!tvFiles.exists()) tvFiles.mkdirs();
+            this.rootDir = this.context.getExternalFilesDir(null);
+        }
     }
 
     public int getPort() {
@@ -552,6 +558,10 @@ public final class RemoteFileServer {
     }
 
     private void installApk(File apkFile) {
+        if (!com.next.tv.launcher.BuildConfig.ALLOW_APK_INSTALL) {
+            Log.i(TAG, "Install APK disabled in this build flavor.");
+            return;
+        }
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             Uri apkUri;

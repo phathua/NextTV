@@ -102,7 +102,9 @@ public final class LocalAdbBridge {
 
     private LocalAdbBridge(Context context) {
         this.context = context.getApplicationContext();
-        loadPrivateKey();
+        if (com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) {
+            loadPrivateKey();
+        }
     }
 
     public static LocalAdbBridge getInstance(Context context) {
@@ -296,6 +298,7 @@ public final class LocalAdbBridge {
      * Synchronized to prevent socket collisions between worker threads.
      */
     public synchronized String executeAdbShell(String command, long timeoutMs) {
+        if (!com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) return "";
         if (command == null || command.isEmpty()) return "";
         long timeout = timeoutMs > 0 ? timeoutMs : DEFAULT_CMD_TIMEOUT_MS;
 
@@ -400,6 +403,7 @@ public final class LocalAdbBridge {
      * Executes shell command via Local ADB Socket, falling back to Runtime.exec if ADB is closed.
      */
     public String executeShell(String command) {
+        if (!com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) return "";
         String res = executeAdbShell(command, DEFAULT_CMD_TIMEOUT_MS);
         if (!res.isEmpty()) {
             return res;
@@ -566,6 +570,16 @@ public final class LocalAdbBridge {
     public void deepKillApp(String packageName) {
         if (packageName == null || packageName.isEmpty()) return;
         markPackageKilled(packageName);
+
+        if (!com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) {
+            try {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    am.killBackgroundProcesses(packageName);
+                }
+            } catch (Exception ignored) {}
+            return;
+        }
 
         // 1. Thực thi force-stop đặc quyền qua ADB
         try {

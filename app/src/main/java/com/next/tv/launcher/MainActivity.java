@@ -694,11 +694,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 Toast.makeText(this, "Đang bật Chế độ trẻ em", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{
-                        android.Manifest.permission.ACCESS_FINE_LOCATION,
-                        android.Manifest.permission.ACCESS_COARSE_LOCATION
-                }, 102);
+            if (com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+                if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                    }, 102);
+                }
             }
             openNetworkPill();
         });

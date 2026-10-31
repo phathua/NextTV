@@ -205,7 +205,8 @@ public class MoviePosterAdapter extends RecyclerView.Adapter<MoviePosterAdapter.
                 context.startActivity(storeIntent);
             } catch (Exception ex) {
                 try {
-                    Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + targetPkg));
+                    Intent webIntent = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                    webIntent.setData(Uri.parse("https://play.google.com/store/apps/details?id=" + targetPkg));
                     webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(webIntent);
                 } catch (Exception ignored) {}

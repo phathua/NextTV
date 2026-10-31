@@ -408,7 +408,11 @@ public class OnboardingDialog extends Dialog {
 
         // Step 4: Wi-Fi
         if (cardPermWifi != null) {
-            setupCardFocus(cardPermWifi, this::requestWifiPermission, null);
+            if (!com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+                cardPermWifi.setVisibility(View.GONE);
+            } else {
+                setupCardFocus(cardPermWifi, this::requestWifiPermission, null);
+            }
         }
 
         // Step 6: Wallpapers
@@ -480,6 +484,9 @@ public class OnboardingDialog extends Dialog {
     }
 
     private boolean isWifiGranted() {
+        if (!com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+            return true;
+        }
         return activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 || activity.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }

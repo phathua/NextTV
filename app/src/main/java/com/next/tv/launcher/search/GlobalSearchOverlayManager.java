@@ -1621,8 +1621,8 @@ public final class GlobalSearchOverlayManager {
                                                                     dismiss();
                                                                 } catch (Exception e) {
                                                                     try {
-                                                                        Intent webYt = new Intent(Intent.ACTION_VIEW,
-                                                                                Uri.parse("https://www.youtube.com/watch?v=" + videoId));
+                                                                        Intent webYt = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                                                                        webYt.setData(Uri.parse("https://www.youtube.com/watch?v=" + videoId));
                                                                         webYt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                                                         context.startActivity(webYt);
                                                                         dismiss();
@@ -1715,8 +1715,8 @@ public final class GlobalSearchOverlayManager {
                                         context.startActivity(ytIntent);
                                         dismiss();
                                     } catch (Exception e) {
-                                        Intent webYt = new Intent(Intent.ACTION_VIEW,
-                                            Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(targetQuery)));
+                                        Intent webYt = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                                         webYt.setData(Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(targetQuery)));
                                         webYt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                         context.startActivity(webYt);
                                         dismiss();
@@ -1753,8 +1753,8 @@ public final class GlobalSearchOverlayManager {
                         context.startActivity(ytIntent);
                         dismiss();
                     } catch (Exception e) {
-                        Intent webYt = new Intent(Intent.ACTION_VIEW,
-                            Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
+                        Intent webYt = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                         webYt.setData(Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
                         webYt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         context.startActivity(webYt);
                         dismiss();
@@ -1925,10 +1925,11 @@ public final class GlobalSearchOverlayManager {
             AlertDialog dialog = new AlertDialog.Builder(dialogContext)
                 .setTitle(title)
                 .setMessage(desc)
-                .setPositiveButton("Mở trình duyệt", (d, w) -> {
+                .setPositiveButton("Mở bài viết", (d, w) -> {
                     if (url != null && !url.isEmpty()) {
                         try {
-                            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                            Intent i = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                            i.setData(Uri.parse(url));
                             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             context.startActivity(i);
                             dismiss();
@@ -1945,7 +1946,8 @@ public final class GlobalSearchOverlayManager {
         } catch (Exception e) {
             if (url != null && !url.isEmpty()) {
                 try {
-                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    Intent i = new Intent(context, com.next.tv.launcher.browser.WebBrowserActivity.class);
+                    i.setData(Uri.parse(url));
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(i);
                     dismiss();

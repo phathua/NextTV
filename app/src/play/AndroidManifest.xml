@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Official Android TV Leanback declaration required for Google Play TV distribution -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="true"
+        tools:replace="android:required" />
+
+    <!-- Remove GPS feature so Play Store knows location is not used by TV hardware -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        tools:node="remove" />
+
+    <!-- Remove restricted and prohibited permissions from Google Play release -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="yandex.tv.permission.ACCESS_TV_SOURCE"
+        tools:node="remove" />
+
+    <application>
+        <!-- Remove Accessibility Services prohibited from non-assistive TV launchers -->
+        <service
+            android:name=".service.HomeKeyService"
+            tools:node="remove" />
+        <service
+            android:name=".service.InputKeyService"
+            tools:node="remove" />
+
+        <!-- Remove dev ThemeProvider requiring WRITE_SECURE_SETTINGS -->
+        <provider
+            android:name=".theme.ThemeProvider"
+            tools:node="remove" />
+    </application>
+</manifest>

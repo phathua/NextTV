@@ -19,6 +19,26 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
+    flavorDimensions 'distribution'
+    productFlavors {
+        sideload {
+            dimension 'distribution'
+            buildConfigField "boolean", "ENABLE_LOCAL_ADB", "true"
+            buildConfigField "boolean", "ALLOW_APK_INSTALL", "true"
+            buildConfigField "boolean", "USE_MANAGE_STORAGE", "true"
+        }
+        play {
+            dimension 'distribution'
+            buildConfigField "boolean", "ENABLE_LOCAL_ADB", "false"
+            buildConfigField "boolean", "ALLOW_APK_INSTALL", "false"
+            buildConfigField "boolean", "USE_MANAGE_STORAGE", "false"
+        }
+    }
+
     signingConfigs {
         release {
             def ksFile = rootProject.file('keystore/nexttv-release.keystore')

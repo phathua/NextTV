@@ -53,12 +53,15 @@ fi
 echo ">>> [1/4] Generating Native Secrets Header..."
 bash "${SCRIPT_DIR}/generate_header.sh"
 
-echo ">>> [2/4] Building Release APK with Gradle..."
-./gradlew assembleRelease --console=plain
+echo ">>> [2/4] Building Sideload Release APK with Gradle..."
+./gradlew assembleSideloadRelease --console=plain
 
-APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1 || true)
+APK=$(find app/build/outputs/apk/sideload/release -name "*.apk" 2>/dev/null | head -n 1 || true)
 if [[ -z "${APK}" ]]; then
-    echo "[-] Could not find any release APK in app/build/outputs/apk/release!"
+    APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -n 1 || true)
+fi
+if [[ -z "${APK}" ]]; then
+    echo "[-] Could not find any release APK in app/build/outputs/apk/sideload/release!"
     exit 1
 fi
 echo ">>> Found APK: ${APK}"

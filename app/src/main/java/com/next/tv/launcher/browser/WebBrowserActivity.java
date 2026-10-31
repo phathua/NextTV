@@ -47,7 +47,6 @@ public class WebBrowserActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_web_browser);
 
         isReaderMode = getIntent().getBooleanExtra("reader_mode", false);
@@ -150,6 +149,7 @@ public class WebBrowserActivity extends Activity {
                 }
                 customView = view;
                 customViewCallback = callback;
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 customViewContainer.addView(view, new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
                 customViewContainer.setVisibility(View.VISIBLE);
@@ -163,6 +163,7 @@ public class WebBrowserActivity extends Activity {
                 customViewContainer.removeView(customView);
                 customViewContainer.setVisibility(View.GONE);
                 customView = null;
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 if (customViewCallback != null) {
                     customViewCallback.onCustomViewHidden();
                     customViewCallback = null;
@@ -319,6 +320,7 @@ public class WebBrowserActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (webView != null) {
             webView.onPause();
             webView.pauseTimers();
