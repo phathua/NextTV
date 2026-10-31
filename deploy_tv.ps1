@@ -3,7 +3,7 @@
     NextTV Launcher - 1-Click Auto Build & Deploy to Android TV
 .DESCRIPTION
     Tự động chuẩn bị ADB, quét TV Box trên mạng LAN, sinh C++ NDK header,
-    dò tìm Java/Gradle, biên dịch Release APK, kiểm tra ABI TV, cài đặt,
+    dò tìm Java/Gradle/SDK, biên dịch Release APK, kiểm tra ABI TV, cài đặt,
     tự phục hồi khi lệch chữ ký, cấp quyền và xác minh khởi chạy.
 #>
 param(
@@ -16,6 +16,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+$repoRoot = $PSScriptRoot
+Set-Location $repoRoot
+
+# Render TrueColor ANSI Banner if banner.ans exists
+$bannerPath = Join-Path $repoRoot "tools\banner.ans"
+if (Test-Path $bannerPath) {
+    try {
+        Get-Content $bannerPath -Raw -Encoding UTF8 | Write-Host
+    } catch {}
+}
 
 # Determine display language
 if ($Lang -eq 'auto') {
@@ -42,6 +53,7 @@ $M = @{
         StepGenHeader   = "[3/5] Sinh Native Secrets Header cho NDK..."
         StepBuild       = "[4/5] Biên dịch Release APK với Gradle..."
         FixingJava      = "[*] Không tìm thấy JAVA_HOME hợp lệ. Đang tự dò JDK từ Android Studio..."
+        FixingSdk       = "[*] Chưa có local.properties. Đang cấu hình sdk.dir tự động..."
         GradleFailed    = "[-] Lỗi biên dịch Gradle. Đang dọn dẹp daemon và khóa file cache để thử lại..."
         ApkFound        = "[+] Đã chọn file APK tối ưu ({0}): {1}"
         StepInstall     = "[5/5] Đang cài đặt lên TV Box ({0})..."
@@ -68,6 +80,7 @@ $M = @{
         StepGenHeader   = "[3/5] Generating Native Secrets Header for NDK..."
         StepBuild       = "[4/5] Building Release APK with Gradle..."
         FixingJava      = "[*] Valid JAVA_HOME not found. Auto-detecting JDK from Android Studio..."
+        FixingSdk       = "[*] Missing local.properties. Setting up sdk.dir automatically..."
         GradleFailed    = "[-] Gradle build failed. Stopping hung daemons and cleaning locks before retry..."
         ApkFound        = "[+] Selected optimal APK ({0}): {1}"
         StepInstall     = "[5/5] Installing on TV Box ({0})..."
@@ -88,10 +101,28 @@ Write-Host "      $($msg.BannerTitle)   " -ForegroundColor Yellow
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$repoRoot = $PSScriptRoot
-Set-Location $repoRoot
+function Ensure-BuildEnvironment {
+    # 1. Ensure local.properties if missing
+    $localProp = Join-Path $repoRoot "local.properties"
+    if (-not (Test-Path $localProp)) {
+        $sdkCandidates = @(
+            $env:ANDROID_HOME,
+            $env:ANDROID_SDK_ROOT,
+            (Join-Path $env:LOCALAPPDATA "Android\Sdk"),
+            (Join-Path $env:ProgramFiles "Android\Android Studio\sdk")
+        )
+        foreach ($cand in $sdkCandidates) {
+            if ($cand -and (Test-Path $cand)) {
+                $escaped = $cand.Replace('\', '\\').Replace(':', '\:')
+                [System.IO.File]::WriteAllText($localProp, "sdk.dir=$escaped`n", [System.Text.Encoding]::UTF8)
+                Write-Host $msg.FixingSdk -ForegroundColor Yellow
+                Write-Host "[+] Created local.properties pointing to: $cand" -ForegroundColor Green
+                break
+            }
+        }
+    }
 
-function Ensure-JavaHome {
+    # 2. Ensure JAVA_HOME
     try {
         $v = & java -version 2>&1
         if ($LASTEXITCODE -eq 0 -and $env:JAVA_HOME -and (Test-Path $env:JAVA_HOME)) {
@@ -194,7 +225,7 @@ try {
         Write-Host $msg.StepGenHeader -ForegroundColor Cyan
         & "$repoRoot\tools\ps\generate_header.ps1"
 
-        Ensure-JavaHome
+        Ensure-BuildEnvironment
 
         Write-Host $msg.StepBuild -ForegroundColor Cyan
         & "$repoRoot\gradlew.bat" assembleRelease --console=plain

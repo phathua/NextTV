@@ -14,11 +14,28 @@ is_adb_working() {
         export PATH="${LOCAL_ADB_DIR}:${PATH}"
         return 0
     fi
+
+    # Check common Android SDK locations on macOS and Linux
+    local SDK_CANDIDATES=(
+        "${ANDROID_HOME:-}"
+        "${ANDROID_SDK_ROOT:-}"
+        "${HOME}/Library/Android/sdk"
+        "${HOME}/Android/Sdk"
+        "/usr/lib/android-sdk"
+    )
+
+    for cand in "${SDK_CANDIDATES[@]}"; do
+        if [[ -n "${cand}" && -x "${cand}/platform-tools/adb" ]]; then
+            export PATH="${cand}/platform-tools:${PATH}"
+            return 0
+        fi
+    done
+
     return 1
 }
 
 if is_adb_working; then
-    exit 0
+    return 0 2>/dev/null || exit 0
 fi
 
 echo "========================================================"
@@ -33,7 +50,7 @@ elif [[ "${OS_TYPE}" == "Linux" ]]; then
     ZIP_URL="https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
 else
     echo "[-] He dieu hanh khong duoc ho tro tu dong: ${OS_TYPE}"
-    exit 1
+    return 1 2>/dev/null || exit 1
 fi
 
 ZIP_FILE="${TOOLS_DIR}/platform-tools.zip"
@@ -45,24 +62,23 @@ elif command -v wget >/dev/null 2>&1; then
     wget -q "${ZIP_URL}" -O "${ZIP_FILE}"
 else
     echo "[-] Can curl hoac wget de tai platform-tools!"
-    exit 1
+    return 1 2>/dev/null || exit 1
 fi
 
 echo ">>> Extracting platform-tools to: ${TOOLS_DIR}"
+rm -rf "${LOCAL_ADB_DIR}"
 if command -v unzip >/dev/null 2>&1; then
     unzip -q -o "${ZIP_FILE}" -d "${TOOLS_DIR}"
-    rm -f "${ZIP_FILE}"
 else
-    echo "[-] Can cong cu unzip de giai nen platform-tools!"
-    rm -f "${ZIP_FILE}"
-    exit 1
+    tar -xzf "${ZIP_FILE}" -C "${TOOLS_DIR}" 2>/dev/null || true
 fi
+rm -f "${ZIP_FILE}"
 
-if [[ -f "${LOCAL_ADB}" ]]; then
-    chmod +x "${LOCAL_ADB}"
+if [[ -x "${LOCAL_ADB}" ]]; then
     export PATH="${LOCAL_ADB_DIR}:${PATH}"
     echo "[+] Cai dat ADB thanh cong tai: ${LOCAL_ADB_DIR}"
+    return 0 2>/dev/null || exit 0
 else
-    echo "[-] Khong tim thay binary adb sau khi giai nen!"
-    exit 1
+    echo "[-] Khong the thiet lap adb executable!"
+    return 1 2>/dev/null || exit 1
 fi

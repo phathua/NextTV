@@ -61,3 +61,5 @@ shots/
 # Local Platform Tools & Archive Fallback
 tools/platform-tools/
 *.zip
+
+tools/ps/generate_secrets*.ps1

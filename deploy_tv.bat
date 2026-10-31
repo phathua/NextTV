@@ -3,6 +3,13 @@ setlocal
 
 title NextTV - Push Release APK to TV Box
 
+rem Print TrueColor ANSI Banner
+chcp 65001 >nul
+if exist "%~dp0tools\banner.ans" (
+    type "%~dp0tools\banner.ans"
+    echo.
+)
+
 rem Detect PowerShell 7+ (pwsh) or fallback to Windows PowerShell
 where pwsh >nul 2>&1
 if %ERRORLEVEL% equ 0 (
