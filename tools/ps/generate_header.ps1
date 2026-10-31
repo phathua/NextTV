@@ -240,7 +240,13 @@ function Append-Entry([string]$name, [string]$val, [byte[]]$mask, [string]$enc) 
 }
 
 Append-Entry "OBF_URL" $url $uMask $encUrl
-Append-Entry "OBF_SECRET" $sec $sMask $encSec
+
+[void]$sb.AppendLine("static const size_t OBF_SECRET_LEN = $($sec.Length);")
+[void]$sb.AppendLine("static const size_t OBF_MASK_LEN = $($sMask.Length);")
+[void]$sb.AppendLine("static const uint8_t OBF_SECRET_BYTES[] = {$encSec};")
+[void]$sb.AppendLine("static const uint8_t OBF_XOR_MASK[] = {$([NativeHeaderVault]::FormatMask($sMask))};")
+[void]$sb.AppendLine()
+
 [void]$sb.AppendLine("static const char* const EXPECTED_APK_SHA256 = `"$sig`";")
 [void]$sb.AppendLine()
 

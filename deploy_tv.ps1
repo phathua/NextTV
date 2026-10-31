@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     NextTV Launcher - 1-Click Auto Build & Deploy to Android TV
 .DESCRIPTION
@@ -305,7 +305,7 @@ try {
 
     # Check for crash logs within 2 seconds
     Start-Sleep -Seconds 2
-    $recentLogs = & adb -s $deviceTarget shell "logcat -d | grep -i 'FATAL EXCEPTION'" 2>$null
+    $recentLogs = & adb -s $deviceTarget shell "logcat -d" 2>$null | Select-String -Pattern "FATAL EXCEPTION"
     if ($recentLogs -and $recentLogs.ToString().Trim().Length -gt 0) {
         Write-Host $msg.CrashWarning -ForegroundColor Red
         Write-Host $recentLogs -ForegroundColor DarkYellow
