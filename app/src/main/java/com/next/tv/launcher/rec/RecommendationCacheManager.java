@@ -4,7 +4,6 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
-import com.next.tv.launcher.TvRecommendationReader;
 
 import org.json.JSONArray;
 import org.json.JSONObject;

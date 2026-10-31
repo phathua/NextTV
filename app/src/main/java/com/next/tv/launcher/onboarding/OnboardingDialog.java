@@ -34,10 +34,10 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.AppAdapter;
-import com.next.tv.launcher.FastPosterLoader;
+import com.next.tv.launcher.apps.AppAdapter;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.MainActivity;
-import com.next.tv.launcher.Order;
+import com.next.tv.launcher.apps.Order;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.KidTimeQuotaTracker;

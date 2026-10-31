@@ -1,5 +1,7 @@
 package com.next.tv.launcher.lock;
 
+import com.next.tv.launcher.utility.UtilitySectionAdapter;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -161,7 +163,7 @@ public final class HiddenAppsDrawer {
                 }
             });
         } else if (activity instanceof MainActivity) {
-            ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.UtilitySectionAdapter.TYPE_HIDE_APPS);
+            ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.utility.UtilitySectionAdapter.TYPE_HIDE_APPS);
         }
 
         if (drawerContent != null) {

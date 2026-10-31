@@ -1,5 +1,7 @@
 package com.next.tv.launcher.clean;
 
+import com.next.tv.launcher.view.Sky;
+
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;

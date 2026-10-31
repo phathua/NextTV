@@ -15,7 +15,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.next.tv.launcher.FastPosterLoader;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.R;
 
 /**

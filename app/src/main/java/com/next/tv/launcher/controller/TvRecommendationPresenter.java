@@ -4,7 +4,7 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.os.Handler;
 
-import com.next.tv.launcher.TvRecommendationReader;
+import com.next.tv.launcher.rec.TvRecommendationReader;
 
 import java.util.List;
 

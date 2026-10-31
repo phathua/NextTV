@@ -18,8 +18,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.AppIconCleaner;
-import com.next.tv.launcher.FastPosterLoader;
+import com.next.tv.launcher.apps.AppIconCleaner;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;

@@ -23,11 +23,11 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.next.tv.launcher.AppAdapter;
+import com.next.tv.launcher.apps.AppAdapter;
 import com.next.tv.launcher.Config;
-import com.next.tv.launcher.HeroArt;
-import com.next.tv.launcher.LastOpened;
-import com.next.tv.launcher.Motion;
+import com.next.tv.launcher.view.HeroArt;
+import com.next.tv.launcher.apps.LastOpened;
+import com.next.tv.launcher.view.Motion;
 import com.next.tv.launcher.R;
 
 import java.util.HashMap;

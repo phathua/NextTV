@@ -1,5 +1,7 @@
 package com.next.tv.launcher.remote;
 
+import com.next.tv.launcher.Config;
+
 import android.graphics.Bitmap;
 import android.graphics.Color;
 

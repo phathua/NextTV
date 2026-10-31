@@ -12,11 +12,11 @@ import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.AppAdapter;
+import com.next.tv.launcher.apps.AppAdapter;
 import com.next.tv.launcher.Config;
-import com.next.tv.launcher.Festival;
-import com.next.tv.launcher.GlassView;
-import com.next.tv.launcher.Motion;
+import com.next.tv.launcher.festive.Festival;
+import com.next.tv.launcher.view.GlassView;
+import com.next.tv.launcher.view.Motion;
 import com.next.tv.launcher.R;
 
 /**
@@ -183,7 +183,8 @@ public class GlassFocusPresenter {
         Log.e("TvHome.Glass", "syncGlassWithTarget: focused=" + (focused.getClass().getSimpleName() + " id=" + (focused.getId() > 0 ? root.getResources().getResourceEntryName(focused.getId()) : focused.getId()))
                 + " w=" + focused.getWidth() + " h=" + focused.getHeight()
                 + " r=" + r + " x=" + x + " y=" + y + " shown=" + glassShown);
-        float radius = isPill ? (focused.getHeight() / 2f * scale) : (AppAdapter.cornerRadius(focused.getWidth(), density) * scale);
+        boolean isWidget = (id == R.id.card && focused.getWidth() > 220 * density);
+        float radius = isWidget ? (18f * density * scale) : isPill ? (focused.getHeight() / 2f * scale) : (AppAdapter.cornerRadius(focused.getWidth(), density) * scale);
 
         ViewGroup.LayoutParams lp = glass.getLayoutParams();
         if (lp.width != (int) w || lp.height != (int) h || focused.getWidth() != glassCardW) {
@@ -224,6 +225,10 @@ public class GlassFocusPresenter {
 
     public void focusGlassOnCard(View card, AppAdapter adapter, RecyclerView grid, ScrollView mainScroll, View clockBlock) {
         if (card == null || glass == null) return;
+        if (card.getId() == R.id.utilityCardRoot) {
+            hideGlass();
+            return;
+        }
         syncGlassWithTarget(card, true, adapter, grid, mainScroll, clockBlock);
     }
 

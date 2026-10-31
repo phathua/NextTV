@@ -9,8 +9,8 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.next.tv.launcher.R;
-import com.next.tv.launcher.SectionConfig;
-import com.next.tv.launcher.TvRecommendationReader;
+import com.next.tv.launcher.rec.SectionConfig;
+import com.next.tv.launcher.rec.TvRecommendationReader;
 
 import java.util.ArrayList;
 import java.util.Collections;

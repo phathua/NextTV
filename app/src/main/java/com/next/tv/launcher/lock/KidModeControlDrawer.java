@@ -650,7 +650,14 @@ public final class KidModeControlDrawer {
         }
 
         if (triggerView != null && triggerView.isShown()) {
-            triggerView.post(() -> triggerView.requestFocus());
+            triggerView.post(() -> {
+                triggerView.requestFocus();
+                if (activity instanceof MainActivity) {
+                    ((MainActivity) activity).focusGlassOnCard(triggerView);
+                }
+            });
+        } else if (activity instanceof MainActivity) {
+            ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.utility.UtilitySectionAdapter.TYPE_KID_MODE);
         }
 
         if (drawerContent != null) {

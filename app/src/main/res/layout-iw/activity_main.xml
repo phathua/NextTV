@@ -8,7 +8,7 @@
 
     <!-- Time-of-day backdrop, drawn once a minute (config.xml sky_intensity; 0 keeps it hidden).
          Keep in step with layout/activity_main.xml: every view there must exist here too. -->
-    <com.next.tv.launcher.SkyView
+    <com.next.tv.launcher.view.SkyView
         android:id="@+id/sky"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -431,7 +431,7 @@
                     android:textAllCaps="true"
                     android:visibility="gone" />
 
-                <com.next.tv.launcher.HorizontalSectionRecyclerView
+                <com.next.tv.launcher.view.HorizontalSectionRecyclerView
                     android:id="@+id/widgetRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -462,7 +462,7 @@
                     android:textAllCaps="true"
                     android:text="Ứng dụng" />
 
-                <com.next.tv.launcher.HorizontalSectionRecyclerView
+                <com.next.tv.launcher.view.HorizontalSectionRecyclerView
                     android:id="@+id/grid"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -501,7 +501,7 @@
                     android:textAllCaps="true"
                     android:text="@string/utility_section_title" />
 
-                <com.next.tv.launcher.HorizontalSectionRecyclerView
+                <com.next.tv.launcher.view.HorizontalSectionRecyclerView
                     android:id="@+id/utilityRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -523,7 +523,7 @@
     </LinearLayout>
 
     <!-- The single floating glass highlight that springs between tiles. -->
-    <com.next.tv.launcher.GlassView
+    <com.next.tv.launcher.view.GlassView
         android:id="@+id/glass"
         android:layout_width="10dp"
         android:layout_height="10dp"

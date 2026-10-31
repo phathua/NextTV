@@ -17,10 +17,9 @@ import android.widget.Toast;
 
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
-import com.next.tv.launcher.SectionConfig;
-import com.next.tv.launcher.SystemSettings;
-import com.next.tv.launcher.TvRecommendationReader;
-import com.next.tv.launcher.UtilitySectionAdapter;
+import com.next.tv.launcher.rec.SectionConfig;
+import com.next.tv.launcher.settings.SystemSettings;
+import com.next.tv.launcher.rec.TvRecommendationReader;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
 
@@ -680,10 +679,17 @@ public final class AdvancedSettingsDrawer {
     public void dismiss() {
         if (!isShowing || drawerView == null) return;
 
-        if (triggerView != null && triggerView.isShown()) {
-            triggerView.post(() -> triggerView.requestFocus());
-        } else if (activity instanceof MainActivity) {
+        if (activity instanceof MainActivity) {
             ((MainActivity) activity).unblockMainContentFocus();
+        }
+        if (triggerView != null && triggerView.isShown()) {
+            triggerView.post(() -> {
+                triggerView.requestFocus();
+                if (activity instanceof MainActivity) {
+                    ((MainActivity) activity).focusGlassOnCard(triggerView);
+                }
+            });
+        } else if (activity instanceof MainActivity) {
             ((MainActivity) activity).focusUtilityType(UtilitySectionAdapter.TYPE_SETTINGS);
         }
 

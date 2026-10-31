@@ -1,5 +1,7 @@
 package com.next.tv.launcher.remote;
 
+import com.next.tv.launcher.apps.Cards;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;

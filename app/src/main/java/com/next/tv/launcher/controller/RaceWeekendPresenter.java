@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.next.tv.launcher.R;
-import com.next.tv.launcher.RaceWeekend;
+import com.next.tv.launcher.calendar.RaceWeekend;
 
 import java.time.Instant;
 import java.time.ZoneId;

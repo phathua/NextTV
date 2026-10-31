@@ -11,7 +11,7 @@ import android.util.SparseArray;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
-import com.next.tv.launcher.LiveTvChannelProvider;
+import com.next.tv.launcher.rec.LiveTvChannelProvider;
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.clean.BackgroundAppCleaner;

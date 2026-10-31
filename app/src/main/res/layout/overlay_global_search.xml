@@ -248,7 +248,7 @@
             android:clipToPadding="false" />
 
         <!-- Horizontal Cards Row (Image 2 and Image 1 style) -->
-        <com.next.tv.launcher.HorizontalSectionRecyclerView
+        <com.next.tv.launcher.view.HorizontalSectionRecyclerView
             android:id="@+id/searchHorizontalRecycler"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

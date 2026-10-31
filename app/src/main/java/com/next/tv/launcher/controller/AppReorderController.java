@@ -7,10 +7,10 @@ import android.widget.Toast;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.AppAdapter;
-import com.next.tv.launcher.DockSlots;
-import com.next.tv.launcher.Festival;
-import com.next.tv.launcher.Order;
+import com.next.tv.launcher.apps.AppAdapter;
+import com.next.tv.launcher.apps.DockSlots;
+import com.next.tv.launcher.festive.Festival;
+import com.next.tv.launcher.apps.Order;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.lock.AppLockManager;
 

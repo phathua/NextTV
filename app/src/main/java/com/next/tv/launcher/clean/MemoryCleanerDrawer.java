@@ -247,7 +247,14 @@ public final class MemoryCleanerDrawer {
             }
 
             if (triggerView != null) {
-                triggerView.requestFocus();
+                triggerView.post(() -> {
+                    triggerView.requestFocus();
+                    if (activity instanceof MainActivity) {
+                        ((MainActivity) activity).focusGlassOnCard(triggerView);
+                    }
+                });
+            } else if (activity instanceof MainActivity) {
+                ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.utility.UtilitySectionAdapter.TYPE_CLEAN_RAM);
             }
         }).start();
     }

@@ -1,5 +1,7 @@
 package com.next.tv.launcher.remote;
 
+import com.next.tv.launcher.MainActivity;
+
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;

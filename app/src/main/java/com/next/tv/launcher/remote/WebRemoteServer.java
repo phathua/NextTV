@@ -1,5 +1,7 @@
 package com.next.tv.launcher.remote;
 
+import com.next.tv.launcher.Config;
+
 import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
@@ -17,7 +19,7 @@ import android.util.Log;
 import android.util.LruCache;
 import android.view.KeyEvent;
 
-import com.next.tv.launcher.LiveTvChannelProvider;
+import com.next.tv.launcher.rec.LiveTvChannelProvider;
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.clean.BackgroundAppCleaner;
 

@@ -1,5 +1,7 @@
 package com.next.tv.launcher.wallpaper;
 
+import com.next.tv.launcher.utility.UtilitySectionAdapter;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -24,7 +26,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.FastPosterLoader;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.security.NativeSecurityBridge;
@@ -306,7 +308,7 @@ public final class WallpaperPickerDrawer {
                 }
             });
         } else if (activity instanceof MainActivity) {
-            ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.UtilitySectionAdapter.TYPE_WALLPAPER);
+            ((MainActivity) activity).focusUtilityType(com.next.tv.launcher.utility.UtilitySectionAdapter.TYPE_WALLPAPER);
         }
 
         if (!isSaved && previewListener != null) {

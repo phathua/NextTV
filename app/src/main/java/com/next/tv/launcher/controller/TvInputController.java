@@ -27,8 +27,8 @@ import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.next.tv.launcher.CoocaaSources;
-import com.next.tv.launcher.Motion;
+import com.next.tv.launcher.service.CoocaaSources;
+import com.next.tv.launcher.view.Motion;
 import com.next.tv.launcher.R;
 
 import java.util.ArrayList;

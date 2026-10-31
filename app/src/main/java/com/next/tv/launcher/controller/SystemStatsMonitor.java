@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.next.tv.launcher.R;
-import com.next.tv.launcher.StatsText;
+import com.next.tv.launcher.view.StatsText;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

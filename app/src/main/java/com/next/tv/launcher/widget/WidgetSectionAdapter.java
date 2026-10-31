@@ -30,7 +30,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.FastPosterLoader;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
 

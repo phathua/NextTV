@@ -17,7 +17,7 @@ import android.widget.Toast;
 
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
-import com.next.tv.launcher.UtilitySectionAdapter;
+import com.next.tv.launcher.utility.UtilitySectionAdapter;
 
 import java.security.SecureRandom;
 import java.util.List;
@@ -713,10 +713,17 @@ public final class WidgetManagerDrawer {
         if (!isShowing || drawerView == null) return;
         stopConfigServer();
 
-        if (triggerView != null && triggerView.isShown()) {
-            triggerView.post(() -> triggerView.requestFocus());
-        } else if (activity instanceof MainActivity) {
+        if (activity instanceof MainActivity) {
             ((MainActivity) activity).unblockMainContentFocus();
+        }
+        if (triggerView != null && triggerView.isShown()) {
+            triggerView.post(() -> {
+                triggerView.requestFocus();
+                if (activity instanceof MainActivity) {
+                    ((MainActivity) activity).focusGlassOnCard(triggerView);
+                }
+            });
+        } else if (activity instanceof MainActivity) {
             ((MainActivity) activity).focusUtilityType(UtilitySectionAdapter.TYPE_WIDGET_MANAGER);
         }
 

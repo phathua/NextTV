@@ -1,5 +1,36 @@
 package com.next.tv.launcher;
 
+import com.next.tv.launcher.apps.AppAdapter;
+import com.next.tv.launcher.apps.AppLibraryDialog;
+import com.next.tv.launcher.apps.CardFeature;
+import com.next.tv.launcher.apps.Cards;
+import com.next.tv.launcher.apps.LibraryApps;
+import com.next.tv.launcher.apps.Order;
+import com.next.tv.launcher.apps.TileRefresh;
+import com.next.tv.launcher.calendar.RaceWeekend;
+import com.next.tv.launcher.calendar.Shamsi;
+import com.next.tv.launcher.calendar.VietnameseLunarCalendar;
+import com.next.tv.launcher.clock.ClockActivity;
+import com.next.tv.launcher.festive.Festival;
+import com.next.tv.launcher.rec.MoviePosterAdapter;
+import com.next.tv.launcher.rec.SectionConfig;
+import com.next.tv.launcher.rec.TvRecommendationReader;
+import com.next.tv.launcher.service.HomeKeyService;
+import com.next.tv.launcher.service.ServiceRepair;
+import com.next.tv.launcher.settings.InputsRequestActivity;
+import com.next.tv.launcher.settings.LauncherSettingsActivity;
+import com.next.tv.launcher.settings.QuickSettingsActivity;
+import com.next.tv.launcher.settings.SystemSettings;
+import com.next.tv.launcher.util.FastPosterLoader;
+import com.next.tv.launcher.utility.UtilitySectionAdapter;
+import com.next.tv.launcher.view.GlassView;
+import com.next.tv.launcher.view.HorizontalSectionRecyclerView;
+import com.next.tv.launcher.view.Motion;
+import com.next.tv.launcher.view.SkyView;
+import com.next.tv.launcher.view.TopFade;
+import com.next.tv.launcher.view.VpnBadge;
+import com.next.tv.launcher.wallpaper.WallpaperPlayer;
+
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
@@ -142,9 +173,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private static final int LAUNCHER_SETTINGS_REQUEST = 42;
     /** Sent by QuickSettingsActivity: open Launcher settings from here so Home rebuilds when they close. */
-    static final String ACTION_LAUNCHER_SETTINGS = "com.next.tv.launcher.action.LAUNCHER_SETTINGS";
+    public static final String ACTION_LAUNCHER_SETTINGS = "com.next.tv.launcher.action.LAUNCHER_SETTINGS";
     /** The system input switcher, forwarded here by InputsRequestActivity while handle_view_inputs is on. */
-    static final String ACTION_VIEW_INPUTS = "com.android.tv.action.VIEW_INPUTS";
+    public static final String ACTION_VIEW_INPUTS = "com.android.tv.action.VIEW_INPUTS";
     /** Tiles per row and dock slots (res/values/config.xml, columns). Set in onCreate. */
     static int COLUMNS = 4;
     private boolean rtlAppGrid;
@@ -1270,6 +1301,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (searchSettingsDrawer != null) {
             searchSettingsDrawer.refreshPermissions();
         }
+
+        // Restore focus to current focused view / section if mainScroll stole focus
+        if (mainScroll != null && mainScroll.hasFocus()) {
+            unblockMainContentFocus();
+            if (currentFocusedSection != null && currentFocusedSection.isShown()) {
+                currentFocusedSection.post(() -> {
+                    if (currentFocusedSection == utilityRecyclerView) {
+                        focusFirstVisibleUtility();
+                    } else if (currentFocusedSection == widgetRecyclerView) {
+                        focusFirstVisibleWidget();
+                    } else if (currentFocusedSection == grid) {
+                        focusTile(lastFocused);
+                    } else {
+                        currentFocusedSection.requestFocus();
+                    }
+                });
+            } else {
+                focusFirstAppTile();
+            }
+        }
     }
 
     private void checkEpgPermission() {
@@ -2080,6 +2131,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     public void focusGlassOnCard(View card) {
+        if (card != null && card.getId() == R.id.utilityCardRoot) {
+            hideGlass();
+            return;
+        }
         if (glassFocusPresenter != null) {
             glassFocusPresenter.focusGlassOnCard(card, adapter, grid, mainScroll, clockBlock);
         }
@@ -3312,7 +3367,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             View child = utilityRecyclerView.getChildAt(0);
             if (child != null) {
                 child.requestFocus();
-                focusGlassOnCard(child);
+                hideGlass();
                 return;
             }
         }
@@ -3323,7 +3378,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 View child = utilityRecyclerView.getChildAt(0);
                 if (child != null) {
                     child.requestFocus();
-                    focusGlassOnCard(child);
+                    hideGlass();
                 }
             } else {
                 utilityRecyclerView.requestFocus();
@@ -3346,14 +3401,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         RecyclerView.ViewHolder vh = utilityRecyclerView.findViewHolderForAdapterPosition(position);
         if (vh != null && vh.itemView != null) {
             vh.itemView.requestFocus();
-            focusGlassOnCard(vh.itemView);
+            hideGlass();
         } else {
             utilityRecyclerView.scrollToPosition(position);
             utilityRecyclerView.postDelayed(() -> {
                 RecyclerView.ViewHolder vhDelayed = utilityRecyclerView.findViewHolderForAdapterPosition(position);
                 if (vhDelayed != null && vhDelayed.itemView != null) {
                     vhDelayed.itemView.requestFocus();
-                    focusGlassOnCard(vhDelayed.itemView);
+                    hideGlass();
                 } else {
                     utilityRecyclerView.requestFocus();
                 }
