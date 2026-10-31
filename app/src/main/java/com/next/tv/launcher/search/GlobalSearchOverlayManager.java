@@ -37,7 +37,7 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.next.tv.launcher.AppIconCleaner;
+import com.next.tv.launcher.apps.AppIconCleaner;
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
 import com.next.tv.launcher.lock.AppLockManager;
@@ -2087,7 +2087,7 @@ public final class GlobalSearchOverlayManager {
         if (addonGatekeeper == null) addonGatekeeper = new WidgetAddonGatekeeper(context);
         if (actionExecutor == null) actionExecutor = new TvAssistantActionExecutor(context);
 
-        TvAssistantDispatcher.ParsedIntent intent = TvAssistantDispatcher.dispatch(query);
+        TvAssistantDispatcher.ParsedIntent intent = TvAssistantDispatcher.dispatch(query, actionExecutor);
         if (intent.type == TvAssistantDispatcher.INTENT_MEDIA_FALLBACK) {
             return false;
         }
@@ -2160,14 +2160,25 @@ public final class GlobalSearchOverlayManager {
         }
         if (intent.type == TvAssistantDispatcher.INTENT_APP_LAUNCH) {
             TvAssistantActionExecutor.SystemActionResult res = actionExecutor.executeLaunchApp(intent.cleanQuery);
-            AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
-            if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
             if (res.success) {
+                AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
+                if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
                 mainHandler.postDelayed(this::dismissImmediate, 400L);
+                return true;
             } else {
+                String norm = TvAssistantDispatcher.stripDiacritics(query);
+                if (norm.startsWith("mo ") || norm.startsWith("xem ") || norm.startsWith("nghe ") || norm.startsWith("bat ")) {
+                    this.currentQuery = intent.cleanQuery != null && !intent.cleanQuery.isEmpty() ? intent.cleanQuery : query;
+                    if (searchBottomQueryText != null) searchBottomQueryText.setText(currentQuery);
+                    AssistantSpeechSpeaker.getInstance(context).speak("Đang tìm kiếm " + currentQuery);
+                    executeUniversalSearch(currentQuery, autoFocus);
+                    return true;
+                }
+                AssistantSpeechSpeaker.getInstance(context).speak(res.feedbackMessage);
+                if (voiceListeningPrompt != null) voiceListeningPrompt.setText(res.feedbackMessage);
                 scheduleAutoDismiss(2500L);
+                return true;
             }
-            return true;
         }
 
         return false;

@@ -58,7 +58,7 @@ public final class TvAssistantDispatcher {
     );
 
     private static final Pattern PATTERN_APP_PREFIX = Pattern.compile(
-            "(?i)^(mở ứng dụng|mo ung dung|mở app|mo app|mở|mo|bật|bat|vào|vao|khởi động|khoi dong|open|launch)\\s+"
+            "(?i)^(mở ứng dụng|mo ung dung|ứng dụng|ung dung|mở app|mo app|vào app|vao app|chạy ứng dụng|chay ung dung|chạy app|chay app|chạy|chay|vào|vao|khởi động|khoi dong|mở|mo|bật|bat|open|launch)\\s+"
     );
 
     // City coordinates lookup (lat, lon) for accurate real-time meteorology
@@ -163,6 +163,10 @@ public final class TvAssistantDispatcher {
      * Dispatches input string into structured ParsedIntent.
      */
     public static ParsedIntent dispatch(String raw) {
+        return dispatch(raw, null);
+    }
+
+    public static ParsedIntent dispatch(String raw, TvAssistantActionExecutor actionExecutor) {
         if (raw == null || raw.trim().isEmpty()) {
             return new ParsedIntent(INTENT_NONE, "", "", null, null, 0, 0, 0);
         }
@@ -193,10 +197,26 @@ public final class TvAssistantDispatcher {
         if (matchesDirectMovie(norm)) {
             String targetApp = extractMovieApp(norm);
             String cleanMovie = cleanMovieQuery(rawClean);
+
+            // Disambiguation: If user said "Mở phim X" / "Vào phim X" and an app named "Phim X" or "X" exists
+            if (targetApp == null && actionExecutor != null) {
+                if (norm.startsWith("mo ") || norm.startsWith("bat ") || norm.startsWith("vao ") || norm.startsWith("chay ") || norm.startsWith("ung dung ")) {
+                    if (actionExecutor.hasAppMatch("phim " + cleanMovie)) {
+                        return new ParsedIntent(INTENT_APP_LAUNCH, rawClean, "phim " + cleanMovie, null, null, 0, 0, 0);
+                    }
+                    if (actionExecutor.hasAppMatch(cleanMovie)) {
+                        return new ParsedIntent(INTENT_APP_LAUNCH, rawClean, cleanMovie, null, null, 0, 0, 0);
+                    }
+                    if (actionExecutor.hasAppMatch(rawClean)) {
+                        return new ParsedIntent(INTENT_APP_LAUNCH, rawClean, rawClean, null, null, 0, 0, 0);
+                    }
+                }
+            }
+
             return new ParsedIntent(INTENT_MOVIE_DIRECT_SEARCH, rawClean, cleanMovie, null, targetApp, 0, 0, 0);
         }
 
-        // 5. App Launch Intent (e.g. "mở youtube", "mở vtv go", "mở netflix", "mở cài đặt")
+        // 5. App Launch Intent (e.g. "mở youtube", "ứng dụng vtv go", "mở netflix", "mở cài đặt")
         if (matchesAppLaunch(norm)) {
             String appQuery = extractAppQuery(rawClean);
             return new ParsedIntent(INTENT_APP_LAUNCH, rawClean, appQuery, null, null, 0, 0, 0);
@@ -223,7 +243,12 @@ public final class TvAssistantDispatcher {
             return new ParsedIntent(INTENT_SPORTS, rawClean, rawClean, null, null, 0, 0, 0);
         }
 
-        // 10. Fallback Media Search
+        // 10. Direct App Match without command verbs (e.g. "cài đặt", "HBO Max", "phim 4k", "VTV Go")
+        if (actionExecutor != null && actionExecutor.hasAppMatch(rawClean)) {
+            return new ParsedIntent(INTENT_APP_LAUNCH, rawClean, rawClean, null, null, 0, 0, 0);
+        }
+
+        // 11. Fallback Media Search
         return new ParsedIntent(INTENT_MEDIA_FALLBACK, rawClean, rawClean, null, null, 0, 0, 0);
     }
 
@@ -311,7 +336,11 @@ public final class TvAssistantDispatcher {
     }
 
     private static boolean matchesAppLaunch(String norm) {
-        return norm.startsWith("mo ") || norm.startsWith("bat ") ||
+        return norm.startsWith("mo ung dung ") || norm.startsWith("ung dung ") ||
+                norm.startsWith("mo app ") || norm.startsWith("app ") ||
+                norm.startsWith("vao app ") || norm.startsWith("chay ung dung ") ||
+                norm.startsWith("chay app ") || norm.startsWith("chay ") ||
+                norm.startsWith("mo ") || norm.startsWith("bat ") ||
                 norm.startsWith("vao ") || norm.startsWith("khoi dong ") ||
                 norm.startsWith("open ") || norm.startsWith("launch ");
     }
