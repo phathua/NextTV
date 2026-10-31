@@ -20,12 +20,24 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = $PSScriptRoot
 Set-Location $repoRoot
 
-# Render TrueColor ANSI Banner if banner.ans exists
-$bannerPath = Join-Path $repoRoot "tools\banner.ans"
-if (Test-Path $bannerPath) {
-    try {
-        Get-Content $bannerPath -Raw -Encoding UTF8 | Write-Host
-    } catch {}
+# Setup tools/logs directory and log file
+$logsDir = Join-Path $repoRoot "tools\logs"
+if (-not (Test-Path $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+}
+$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$logFile = Join-Path $logsDir "deploy_${timestamp}.log"
+
+function Log-Message([string]$text) {
+    $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -LiteralPath $logFile -Value "[$now] $text" -Encoding UTF8 -ErrorAction SilentlyContinue
+}
+
+# Single-line interactive status updater (Zero-clutter terminal)
+function Update-Status([string]$text, [string]$color = "Cyan") {
+    Log-Message $text
+    $padded = $text.PadRight(80, ' ')
+    Write-Host "`r$padded" -NoNewline -ForegroundColor $color
 }
 
 # Determine display language
@@ -40,66 +52,55 @@ if ($Lang -eq 'auto') {
 
 $M = @{
     vi = @{
-        BannerTitle     = "NextTV Launcher - Tự động Biên dịch & Cài đặt Release"
-        StepAdb         = "[1/5] Kiểm tra và chuẩn bị ADB Platform-Tools..."
-        StepFindIp      = "[2/5] Dò tìm Android TV Box trên mạng LAN..."
-        FoundTv         = "[+] Đã tìm thấy TV Box tại IP: {0}"
-        NoTvFound       = "[!] Không tìm thấy TV Box nào mở port 5555 trên mạng LAN."
-        PromptIp        = "Nhập địa chỉ IP của Android TV Box (ví dụ: 192.168.1.100): "
-        NoIpAbort       = "[-] Chưa xác định được IP của TV Box. Hủy bỏ tác vụ."
-        Connecting      = "[*] Đang kết nối ADB tới {0}:5555..."
-        DeviceStatus    = "[*] Trạng thái thiết bị: {0}"
-        WaitAuth        = "[!] Màn hình TV đang chờ xác nhận gỡ lỗi (unauthorized). Vui lòng nhìn lên TV và bấm 'Cho phép (Allow)'..."
-        StepGenHeader   = "[3/5] Sinh Native Secrets Header cho NDK..."
-        StepBuild       = "[4/5] Biên dịch Release APK với Gradle..."
-        FixingJava      = "[*] Không tìm thấy JAVA_HOME hợp lệ. Đang tự dò JDK từ Android Studio..."
-        FixingSdk       = "[*] Chưa có local.properties. Đang cấu hình sdk.dir tự động..."
-        GradleFailed    = "[-] Lỗi biên dịch Gradle. Đang dọn dẹp daemon và khóa file cache để thử lại..."
-        ApkFound        = "[+] Đã chọn file APK tối ưu ({0}): {1}"
-        StepInstall     = "[5/5] Đang cài đặt lên TV Box ({0})..."
-        SigConflict     = "[!] Phát hiện xung đột chữ ký hoặc hạ cấp phiên bản (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Đang gỡ bản cũ..."
-        GrantPerms      = "[*] Cấp quyền chạy nền và hệ thống..."
-        LaunchApp       = "[*] Khởi chạy NextTV Launcher..."
-        SetHome         = "[*] Đặt NextTV làm Launcher mặc định..."
-        CrashWarning    = "[!] Cảnh báo: Phát hiện lỗi crash khi khởi động (Startup Crash) từ Logcat!"
-        Success         = "[+] THÀNH CÔNG: NextTV Release đã được cài đặt và khởi chạy!"
-        ErrorOccurred   = "[-] CÓ LỖI XẢY RA: {0}"
-        PressEnterExit  = "Nhấn Enter để đóng cửa sổ..."
+        StepAdb         = "[1/5] Kiem tra cong cu ADB..."
+        StepFindIp      = "[2/5] Dang tim Android TV tren mang LAN..."
+        TvConnected     = "[2/5] Da ket noi TV: {0} ({1})"
+        NoTvFound       = "[!] Khong tim thay TV Box nao mo port 5555."
+        PromptIp        = "Nhap IP Android TV Box (vi du: 192.168.1.100): "
+        NoIpAbort       = "Chua xac dinh duoc IP cua TV Box. Huy bo."
+        Connecting      = "[2/5] Dang ket noi ADB toi {0}:5555..."
+        WaitAuth        = "[!] Màn hinh TV dang cho xac nhan debugging. Bam 'Cho phep (Allow)' tren TV..."
+        StepGenHeader   = "[3/5] Dang sinh Native Secrets Header cho NDK..."
+        StepBuild       = "[4/5] Dang bien dich Release APK voi Gradle..."
+        FixingJava      = "[*] Dang tu do tim JDK tu Android Studio..."
+        FixingSdk       = "[*] Dang cau hinh sdk.dir tu dong..."
+        GradleFailed    = "Loi bien dich Gradle. Dang retry voi --no-daemon..."
+        StepInstall     = "[5/5] Dang cai dat APK {0} len TV Box ({1})..."
+        SigConflict     = "[!] Xung dot chu ky. Dang go ban cu va cai lai..."
+        GrantPerms      = "[5/5] Dang cap quyen he thong..."
+        LaunchApp       = "[5/5] Dang khoi chay NextTV tren TV..."
+        Success         = "[5/5] HOAN TAT! Da cai dat va khoi chay NextTV thanh cong!"
+        CrashWarning    = "Canh bao: Phat hien crash ung dung tu Logcat!"
+        ErrorOccurred   = "CO LOI XAY RA: {0}"
+        LogLocation     = "Chi tiet log da duoc luu tai: {0}"
+        PressEnterExit  = "Nhan Enter de dong cua so..."
     }
     en = @{
-        BannerTitle     = "NextTV Launcher - Auto Build & Deploy Release"
-        StepAdb         = "[1/5] Checking and preparing ADB Platform-Tools..."
-        StepFindIp      = "[2/5] Discovering Android TV Box on LAN..."
-        FoundTv         = "[+] Found Android TV Box at IP: {0}"
-        NoTvFound       = "[!] No Android TV Box listening on port 5555 found."
-        PromptIp        = "Enter Android TV Box IP address (e.g. 192.168.1.100): "
-        NoIpAbort       = "[-] TV Box IP not determined. Aborting."
-        Connecting      = "[*] Connecting ADB to {0}:5555..."
-        DeviceStatus    = "[*] Device status: {0}"
-        WaitAuth        = "[!] TV is waiting for debugging authorization (unauthorized). Please allow USB debugging on your TV screen..."
+        StepAdb         = "[1/5] Checking ADB platform-tools..."
+        StepFindIp      = "[2/5] Scanning Android TV on LAN..."
+        TvConnected     = "[2/5] Connected to TV: {0} ({1})"
+        NoTvFound       = "[!] No Android TV found on port 5555."
+        PromptIp        = "Enter Android TV Box IP address: "
+        NoIpAbort       = "TV Box IP not determined. Aborting."
+        Connecting      = "[2/5] Connecting ADB to {0}:5555..."
+        WaitAuth        = "[!] TV is waiting for authorization. Please click 'Allow' on TV screen..."
         StepGenHeader   = "[3/5] Generating Native Secrets Header for NDK..."
         StepBuild       = "[4/5] Building Release APK with Gradle..."
-        FixingJava      = "[*] Valid JAVA_HOME not found. Auto-detecting JDK from Android Studio..."
-        FixingSdk       = "[*] Missing local.properties. Setting up sdk.dir automatically..."
-        GradleFailed    = "[-] Gradle build failed. Stopping hung daemons and cleaning locks before retry..."
-        ApkFound        = "[+] Selected optimal APK ({0}): {1}"
-        StepInstall     = "[5/5] Installing on TV Box ({0})..."
-        SigConflict     = "[!] Signature mismatch or downgrade detected (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Uninstalling existing package..."
-        GrantPerms      = "[*] Granting system and runtime permissions..."
-        LaunchApp       = "[*] Starting NextTV Launcher..."
-        SetHome         = "[*] Setting NextTV as default Home launcher..."
-        CrashWarning    = "[!] Warning: Potential startup crash detected in Logcat!"
-        Success         = "[+] SUCCESS: NextTV Release installed and running successfully!"
-        ErrorOccurred   = "[-] ERROR OCCURRED: {0}"
+        FixingJava      = "[*] Auto-detecting JDK from Android Studio..."
+        FixingSdk       = "[*] Setting up sdk.dir automatically..."
+        GradleFailed    = "Gradle build failed. Retrying with --no-daemon..."
+        StepInstall     = "[5/5] Installing APK {0} on TV Box ({1})..."
+        SigConflict     = "[!] Signature mismatch. Reinstalling..."
+        GrantPerms      = "[5/5] Granting runtime permissions..."
+        LaunchApp       = "[5/5] Starting NextTV on TV..."
+        Success         = "[5/5] SUCCESS: NextTV installed and running on TV Box!"
+        CrashWarning    = "Warning: Potential app crash detected from Logcat!"
+        ErrorOccurred   = "ERROR OCCURRED: {0}"
+        LogLocation     = "Detailed logs saved at: {0}"
         PressEnterExit  = "Press Enter to exit..."
     }
 }
 $msg = $M[$Lang]
-
-Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "      $($msg.BannerTitle)   " -ForegroundColor Yellow
-Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host ""
 
 function Ensure-BuildEnvironment {
     # 1. Ensure local.properties if missing
@@ -115,8 +116,7 @@ function Ensure-BuildEnvironment {
             if ($cand -and (Test-Path $cand)) {
                 $escaped = $cand.Replace('\', '\\').Replace(':', '\:')
                 [System.IO.File]::WriteAllText($localProp, "sdk.dir=$escaped`n", [System.Text.Encoding]::UTF8)
-                Write-Host $msg.FixingSdk -ForegroundColor Yellow
-                Write-Host "[+] Created local.properties pointing to: $cand" -ForegroundColor Green
+                Log-Message "Created local.properties -> $cand"
                 break
             }
         }
@@ -130,7 +130,6 @@ function Ensure-BuildEnvironment {
         }
     } catch {}
 
-    Write-Host $msg.FixingJava -ForegroundColor Yellow
     $candidates = @(
         "D:\DevEnv\JDK",
         (Join-Path $env:ProgramFiles "Android\Android Studio\jbr"),
@@ -141,7 +140,7 @@ function Ensure-BuildEnvironment {
         if ($c -and (Test-Path (Join-Path $c "bin\java.exe"))) {
             $env:JAVA_HOME = $c
             $env:PATH = "$c\bin;$env:PATH"
-            Write-Host "[+] JAVA_HOME set to: $c" -ForegroundColor Green
+            Log-Message "JAVA_HOME set to: $c"
             return
         }
     }
@@ -149,41 +148,41 @@ function Ensure-BuildEnvironment {
 
 try {
     # 1. Ensure ADB platform-tools
-    Write-Host $msg.StepAdb -ForegroundColor Cyan
-    & "$repoRoot\tools\ps\ensure_adb.ps1"
+    Update-Status $msg.StepAdb "Cyan"
+    $adbOut = & "$repoRoot\tools\ps\ensure_adb.ps1" 2>&1
+    Log-Message ($adbOut | Out-String)
 
     # 2. Find TV Box IP
-    Write-Host $msg.StepFindIp -ForegroundColor Cyan
+    Update-Status $msg.StepFindIp "Cyan"
     if (-not $TvHost) {
-        $scanOutput = & "$repoRoot\tools\ps\find_tv_ip.ps1"
+        $scanOutput = & "$repoRoot\tools\ps\find_tv_ip.ps1" 2>&1
+        Log-Message ($scanOutput | Out-String)
         foreach ($line in $scanOutput) {
             if ($line -match "__FOUND_IP__:(.*)") {
                 $TvHost = $Matches[1].Trim()
                 break
             }
         }
-        if ($TvHost) {
-            Write-Host ($msg.FoundTv -f $TvHost) -ForegroundColor Green
-        } else {
+        if (-not $TvHost) {
+            Write-Host ""
             Write-Host $msg.NoTvFound -ForegroundColor Yellow
             $TvHost = Read-Host $msg.PromptIp
         }
     }
 
     if (-not $TvHost) {
-        Write-Host $msg.NoIpAbort -ForegroundColor Red
-        Read-Host $msg.PressEnterExit
-        exit 1
+        throw $msg.NoIpAbort
     }
 
     $deviceTarget = "${TvHost}:5555"
 
     # 3. Connect ADB and handle authorization / offline
-    Write-Host ($msg.Connecting -f $TvHost) -ForegroundColor Cyan
-    & adb connect $deviceTarget | Out-Null
-    Start-Sleep -Milliseconds 800
+    Update-Status ($msg.Connecting -f $TvHost) "Cyan"
+    $connOut = & adb connect $deviceTarget 2>&1
+    Log-Message ($connOut | Out-String)
+    Start-Sleep -Milliseconds 600
 
-    # Polling device status up to 15 seconds
+    # Polling device status up to 10 seconds
     $isAuthorized = $false
     for ($attempt = 1; $attempt -le 10; $attempt++) {
         $devicesOutput = & adb devices 2>&1
@@ -199,6 +198,7 @@ try {
             $isAuthorized = $true
             break
         } elseif ($matchedState -eq 'unauthorized') {
+            Write-Host ""
             Write-Host $msg.WaitAuth -ForegroundColor Yellow
             try { [Console]::Beep(1000, 300) } catch {}
             Start-Sleep -Seconds 2
@@ -211,37 +211,39 @@ try {
         }
     }
 
-    if (-not $isAuthorized) {
-        Write-Host "[-] Device connection state: $matchedState" -ForegroundColor Yellow
-    }
-
-    # Query device CPU ABI to select the best APK
+    # Query device CPU ABI
     $deviceAbi = (& adb -s $deviceTarget shell getprop ro.product.cpu.abi 2>$null)
-    if ($deviceAbi) { $deviceAbi = $deviceAbi.Trim() }
-    Write-Host "[*] TV Architecture ABI: $deviceAbi" -ForegroundColor DarkGray
+    if ($deviceAbi) { $deviceAbi = $deviceAbi.Trim() } else { $deviceAbi = "unknown" }
+    Log-Message "TV Architecture ABI: $deviceAbi"
+    Update-Status ($msg.TvConnected -f $TvHost, $deviceAbi) "Green"
+    Start-Sleep -Milliseconds 400
 
     # 4. Generate Native Header & Build APK
     if (-not $SkipBuild) {
-        Write-Host $msg.StepGenHeader -ForegroundColor Cyan
-        & "$repoRoot\tools\ps\generate_header.ps1"
+        Update-Status $msg.StepGenHeader "Cyan"
+        $headerOut = & "$repoRoot\tools\ps\generate_header.ps1" 2>&1
+        Log-Message ($headerOut | Out-String)
 
         Ensure-BuildEnvironment
 
-        Write-Host $msg.StepBuild -ForegroundColor Cyan
-        & "$repoRoot\gradlew.bat" assembleRelease --console=plain
+        Update-Status $msg.StepBuild "Cyan"
+        $gradleCmd = "$repoRoot\gradlew.bat"
+        $buildOut = & $gradleCmd assembleRelease --console=plain 2>&1
+        Log-Message ($buildOut | Out-String)
+
         if ($LASTEXITCODE -ne 0) {
-            Write-Host $msg.GradleFailed -ForegroundColor Yellow
-            & "$repoRoot\gradlew.bat" --stop 2>$null
+            Update-Status $msg.GradleFailed "Yellow"
+            & $gradleCmd --stop 2>$null | Out-Null
             Get-ChildItem -Path "$repoRoot\.gradle" -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-            Write-Host "[*] Retrying Gradle build with --no-daemon..." -ForegroundColor Cyan
-            & "$repoRoot\gradlew.bat" assembleRelease --no-daemon --console=plain
+            $buildOutRetry = & $gradleCmd assembleRelease --no-daemon --console=plain 2>&1
+            Log-Message ($buildOutRetry | Out-String)
             if ($LASTEXITCODE -ne 0) {
-                throw "Gradle assembleRelease failed after retry!"
+                throw "Gradle assembleRelease failed! Check details in $logFile"
             }
         }
     }
 
-    # 5. Select the most suitable APK based on target ABI
+    # 5. Select optimal APK based on TV ABI
     $apkDir = Join-Path $repoRoot "app\build\outputs\apk\release"
     $apk = $null
     $chosenType = "universal"
@@ -267,61 +269,65 @@ try {
         throw "Could not locate any release APK in $apkDir"
     }
 
-    Write-Host ($msg.ApkFound -f $chosenType, $apk) -ForegroundColor Green
-
     # 6. Install APK on TV Box
-    Write-Host ($msg.StepInstall -f $TvHost) -ForegroundColor Cyan
+    Update-Status ($msg.StepInstall -f $chosenType, $TvHost) "Cyan"
     $installOutput = & adb -s $deviceTarget install -r "$apk" 2>&1 | Out-String
-    Write-Host $installOutput -ForegroundColor Gray
+    Log-Message $installOutput
 
-    # Check for signature mismatch or downgrade error
     if ($installOutput -match "INSTALL_FAILED_UPDATE_INCOMPATIBLE|INSTALL_FAILED_VERSION_DOWNGRADE|INSTALL_FAILED_SHARED_USER_INCOMPATIBLE") {
-        Write-Host $msg.SigConflict -ForegroundColor Yellow
+        Update-Status $msg.SigConflict "Yellow"
         & adb -s $deviceTarget uninstall com.next.tv.launcher 2>&1 | Out-Null
         $installOutput = & adb -s $deviceTarget install -r "$apk" 2>&1 | Out-String
-        Write-Host $installOutput -ForegroundColor Gray
+        Log-Message $installOutput
     }
 
     if ($installOutput -notmatch "Success") {
         throw "ADB install failed: $installOutput"
     }
 
-    # 7. Grant Permissions
-    Write-Host $msg.GrantPerms -ForegroundColor Cyan
-    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.ACCESS_FINE_LOCATION 2>$null
-    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.ACCESS_COARSE_LOCATION 2>$null
-    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.READ_EXTERNAL_STORAGE 2>$null
-    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.WRITE_EXTERNAL_STORAGE 2>$null
+    # 7. Grant Permissions & Launch App
+    Update-Status $msg.GrantPerms "Cyan"
+    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.ACCESS_FINE_LOCATION 2>$null | Out-Null
+    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.ACCESS_COARSE_LOCATION 2>$null | Out-Null
+    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.READ_EXTERNAL_STORAGE 2>$null | Out-Null
+    & adb -s $deviceTarget shell pm grant com.next.tv.launcher android.permission.WRITE_EXTERNAL_STORAGE 2>$null | Out-Null
 
-    # 8. Launch App & Startup Verification
-    Write-Host $msg.LaunchApp -ForegroundColor Cyan
-    & adb -s $deviceTarget shell logcat -c 2>$null
+    Update-Status $msg.LaunchApp "Cyan"
+    & adb -s $deviceTarget shell logcat -c 2>$null | Out-Null
     & adb -s $deviceTarget shell am start -n com.next.tv.launcher/.MainActivity 2>&1 | Out-Null
 
     if ($SetDefaultHome) {
-        Write-Host $msg.SetHome -ForegroundColor Cyan
-        & adb -s $deviceTarget shell cmd package set-home-activity com.next.tv.launcher/.MainActivity 2>$null
+        & adb -s $deviceTarget shell cmd package set-home-activity com.next.tv.launcher/.MainActivity 2>$null | Out-Null
     }
 
-    # Check for crash logs within 2 seconds
+    # 8. Check for crash logs within 2 seconds
     Start-Sleep -Seconds 2
     $recentLogs = & adb -s $deviceTarget shell "logcat -d" 2>$null | Select-String -Pattern "FATAL EXCEPTION"
-    if ($recentLogs -and $recentLogs.ToString().Trim().Length -gt 0) {
+    if ($recentLogs) {
+        Write-Host ""
         Write-Host $msg.CrashWarning -ForegroundColor Red
-        Write-Host $recentLogs -ForegroundColor DarkYellow
+        Log-Message "Crash log: $recentLogs"
+        Write-Host ($msg.LogLocation -f $logFile) -ForegroundColor DarkYellow
+        Write-Host ""
+        Read-Host $msg.PressEnterExit
+        exit 1
     }
 
+    # Success: Print clean completion message on same line and auto-exit after 2s
+    Update-Status $msg.Success "Green"
     Write-Host ""
-    Write-Host "========================================================" -ForegroundColor Green
-    Write-Host $msg.Success -ForegroundColor Green
-    Write-Host "========================================================" -ForegroundColor Green
+    Log-Message "Deploy finished successfully."
+    Start-Sleep -Seconds 2
+    exit 0
 } catch {
+    # Failure: Break line, display red error, point to log file, and pause
+    Write-Host ""
     Write-Host ""
     Write-Host ($msg.ErrorOccurred -f $_) -ForegroundColor Red
-}
-
-Write-Host ""
-# Only prompt to wait if launched via double-click in interactive console
-if ([Environment]::UserInteractive) {
+    Log-Message "ERROR: $_"
+    Write-Host ""
+    Write-Host ($msg.LogLocation -f $logFile) -ForegroundColor DarkYellow
+    Write-Host ""
     Read-Host $msg.PressEnterExit
+    exit 1
 }

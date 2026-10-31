@@ -63,3 +63,6 @@ tools/platform-tools/
 *.zip
 
 tools/ps/generate_secrets*.ps1
+
+tools/logs/
+*.last_tv_ip
