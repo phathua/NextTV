@@ -694,7 +694,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 Toast.makeText(this, "Đang bật Chế độ trẻ em", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+            if (com.next.tv.launcher.BuildConfig.ALLOW_WIFI_LOCATION) {
                 if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     requestPermissions(new String[]{
                             android.Manifest.permission.ACCESS_FINE_LOCATION,

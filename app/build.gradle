@@ -4,13 +4,13 @@ plugins {
 
 android {
     namespace 'com.next.tv.launcher'
-    compileSdk 34
+    compileSdk 35
     ndkVersion '25.1.8937393'
 
     defaultConfig {
         applicationId 'com.next.tv.launcher'
         minSdk 26
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName '1.0.0'
 
@@ -30,12 +30,14 @@ android {
             buildConfigField "boolean", "ENABLE_LOCAL_ADB", "true"
             buildConfigField "boolean", "ALLOW_APK_INSTALL", "true"
             buildConfigField "boolean", "USE_MANAGE_STORAGE", "true"
+            buildConfigField "boolean", "ALLOW_WIFI_LOCATION", "true"
         }
         play {
             dimension 'distribution'
             buildConfigField "boolean", "ENABLE_LOCAL_ADB", "false"
             buildConfigField "boolean", "ALLOW_APK_INSTALL", "false"
             buildConfigField "boolean", "USE_MANAGE_STORAGE", "false"
+            buildConfigField "boolean", "ALLOW_WIFI_LOCATION", "false"
         }
     }
 
@@ -83,7 +85,7 @@ android {
 
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
         resources {
             excludes += ['kotlin/**', 'META-INF/*.version', 'META-INF/*.kotlin_module', 'DebugProbesKt.bin']

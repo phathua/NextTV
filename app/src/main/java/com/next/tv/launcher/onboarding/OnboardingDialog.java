@@ -408,7 +408,7 @@ public class OnboardingDialog extends Dialog {
 
         // Step 4: Wi-Fi
         if (cardPermWifi != null) {
-            if (!com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+            if (!com.next.tv.launcher.BuildConfig.ALLOW_WIFI_LOCATION) {
                 cardPermWifi.setVisibility(View.GONE);
             } else {
                 setupCardFocus(cardPermWifi, this::requestWifiPermission, null);
@@ -484,7 +484,7 @@ public class OnboardingDialog extends Dialog {
     }
 
     private boolean isWifiGranted() {
-        if (!com.next.tv.launcher.BuildConfig.USE_MANAGE_STORAGE) {
+        if (!com.next.tv.launcher.BuildConfig.ALLOW_WIFI_LOCATION) {
             return true;
         }
         return activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED

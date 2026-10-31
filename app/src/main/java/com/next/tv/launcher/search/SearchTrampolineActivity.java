@@ -43,13 +43,21 @@ public class SearchTrampolineActivity extends Activity {
                             MainActivity.activeInstance.showSearchOverlay(true);
                         }
                     });
-                } else {
+                } else if (canDrawOverlay) {
                     if (finalQuery != null) {
                         manager.show(getApplicationContext(), false);
                         manager.executeUniversalSearch(finalQuery, true);
                     } else {
                         manager.show(getApplicationContext(), true);
                     }
+                } else {
+                    Intent mainIntent = new Intent(this, MainActivity.class);
+                    mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    mainIntent.setAction(Intent.ACTION_SEARCH);
+                    if (finalQuery != null) {
+                        mainIntent.putExtra(SearchManager.QUERY, finalQuery);
+                    }
+                    startActivity(mainIntent);
                 }
             }
         } catch (Exception ignored) {

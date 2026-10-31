@@ -13,7 +13,7 @@
         android:name="android.hardware.location.gps"
         tools:node="remove" />
 
-    <!-- Remove restricted and prohibited permissions from Google Play release -->
+    <!-- Remove restricted, sensitive, and prohibited permissions from Google Play release -->
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:node="remove" />
@@ -24,22 +24,44 @@
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="remove" />
     <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove" />
+    <uses-permission
         android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:node="remove" />
     <uses-permission
         android:name="android.permission.ACCESS_COARSE_LOCATION"
         tools:node="remove" />
     <uses-permission
+        android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        tools:node="remove" />
+    <uses-permission
         android:name="yandex.tv.permission.ACCESS_TV_SOURCE"
         tools:node="remove" />
 
-    <application>
+    <application
+        android:usesCleartextTraffic="false"
+        tools:replace="android:usesCleartextTraffic">
+
         <!-- Remove Accessibility Services prohibited from non-assistive TV launchers -->
         <service
             android:name=".service.HomeKeyService"
             tools:node="remove" />
         <service
             android:name=".service.InputKeyService"
+            tools:node="remove" />
+
+        <!-- Remove Notification Listener Service on Play Store flavor -->
+        <service
+            android:name=".widget.MediaNotificationListener"
+            tools:node="remove" />
+
+        <!-- Remove invisible probe activity helper -->
+        <activity
+            android:name=".service.ProbeActivity"
             tools:node="remove" />
 
         <!-- Remove dev ThemeProvider requiring WRITE_SECURE_SETTINGS -->

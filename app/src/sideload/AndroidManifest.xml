@@ -2,6 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Sideload: Third-party TV media packages queries -->
+    <queries>
+        <package android:name="com.stremio.one" />
+        <package android:name="com.nuvio.tv" />
+        <package android:name="com.teamsmart.videomanager.tv" />
+        <package android:name="com.liskovsoft.videomanager" />
+    </queries>
+
     <application>
         <!-- Sideload: Allows system-wide Web browser intents -->
         <activity
