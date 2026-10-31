@@ -24,7 +24,34 @@ if (-not $ForceDownload -and (Test-AdbWorking)) {
     return
 }
 
-# 2. Check if adb exists in local tools/platform-tools
+# 2. Check Android Studio SDK platform-tools in Local AppData or Environment Variables
+$sdkCandidates = @(
+    $env:ANDROID_HOME,
+    $env:ANDROID_SDK_ROOT,
+    (Join-Path $env:LOCALAPPDATA "Android\Sdk"),
+    (Join-Path $env:ProgramFiles "Android\Android Studio\platform-tools")
+)
+
+foreach ($sdkDir in $sdkCandidates) {
+    if ($sdkDir) {
+        $candidateExe = Join-Path $sdkDir "platform-tools\adb.exe"
+        if (-not (Test-Path $candidateExe)) {
+            $candidateExe = Join-Path $sdkDir "adb.exe"
+        }
+        if (Test-Path $candidateExe) {
+            $candidateDir = Split-Path -Parent $candidateExe
+            if ($env:PATH -notlike "*$candidateDir*") {
+                $env:PATH = "$candidateDir;$env:PATH"
+            }
+            if (Test-AdbWorking) {
+                Write-Host "[+] Found Android Studio ADB at: $candidateExe" -ForegroundColor Green
+                return
+            }
+        }
+    }
+}
+
+# 3. Check if adb exists in local tools/platform-tools
 if (Test-Path $localAdbExe) {
     if ($env:PATH -notlike "*$localAdbDir*") {
         $env:PATH = "$localAdbDir;$env:PATH"
@@ -34,7 +61,7 @@ if (Test-Path $localAdbExe) {
     }
 }
 
-# 3. Download Google official platform-tools for Windows
+# 4. Download Google official platform-tools for Windows
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host " [*] ADB chua co tren may. Dang tu dong tai platform-tools tu Google..." -ForegroundColor Yellow
 Write-Host "========================================================" -ForegroundColor Cyan
@@ -46,7 +73,6 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Write-Host ">>> Downloading: $zipUrl" -ForegroundColor Gray
     
-    # Use WebClient for faster progress download without PowerShell progress buffer overhead
     $client = New-Object System.Net.WebClient
     $client.DownloadFile($zipUrl, $zipFile)
     $client.Dispose()
@@ -63,11 +89,16 @@ try {
         Write-Host "[+] Cai dat ADB thanh cong tai: $localAdbDir" -ForegroundColor Green
         $env:PATH = "$localAdbDir;$env:PATH"
 
-        # Try to persist in User Environment PATH for convenience
+        # Persist in User PATH cleanly without duplicate semicolons
         try {
             $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+            if (-not $userPath) {
+                $userPath = ""
+            }
             if ($userPath -notlike "*$localAdbDir*") {
-                [Environment]::SetEnvironmentVariable("Path", "$userPath;$localAdbDir", "User")
+                $trimmed = $userPath.TrimEnd(';')
+                $newPath = if ($trimmed.Length -gt 0) { "$trimmed;$localAdbDir" } else { $localAdbDir }
+                [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
                 Write-Host "[+] Da luu duong dan ADB vao User PATH de su dung lau dai." -ForegroundColor Green
             }
         } catch {}

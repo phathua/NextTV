@@ -1,6 +1,8 @@
 # NextTV - Native Header Generator for NDK Build
 # Pure PowerShell & .NET - zero external dependencies.
-param()
+param(
+    [switch]$Force
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -10,7 +12,7 @@ using System.Text;
 
 public class NativeHeaderVault {
     public static string Encode(string text, byte[] key, int lShift, int rShift, string sig) {
-        if (string.IsNullOrEmpty(text)) return "";
+        if (string.IsNullOrEmpty(text)) return "0x00";
         var sb = new StringBuilder();
         for (int i = 0; i < text.Length; i++) {
             int c = (int)text[i];
@@ -25,7 +27,7 @@ public class NativeHeaderVault {
     }
 
     public static string FormatMask(byte[] mask) {
-        if (mask == null || mask.Length == 0) return "";
+        if (mask == null || mask.Length == 0) return "0x00";
         var sb = new StringBuilder();
         for (int i = 0; i < mask.Length; i++) {
             if (i > 0) sb.Append(", ");
@@ -46,7 +48,7 @@ function Read-ConfigFile([string]$FilePath) {
                 $idx = $t.IndexOf('=')
                 if ($idx -gt 0) {
                     $k = $t.Substring(0, $idx).Trim()
-                    $v = $t.Substring($idx + 1).Trim()
+                    $v = $t.Substring($idx + 1).Trim().Trim('"', "'")
                     $map[$k] = $v
                 }
             }
@@ -149,6 +151,17 @@ $sb = [System.Text.StringBuilder]::new()
 
 [void]$sb.AppendLine('#endif // GENERATED_SECRETS_H')
 
+$newContent = $sb.ToString()
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-[System.IO.File]::WriteAllText($headerPath, $sb.ToString(), $utf8NoBom)
-Write-Host "Generated native secrets header at: $headerPath"
+
+# Incremental Build Protection: Avoid touching file timestamp if unchanged
+if (-not $Force -and (Test-Path $headerPath)) {
+    $existingContent = [System.IO.File]::ReadAllText($headerPath, [System.Text.Encoding]::UTF8)
+    if ($existingContent -eq $newContent) {
+        Write-Host ">>> Header is up-to-date. Skipping write to preserve NDK build cache: $headerPath" -ForegroundColor DarkGray
+        exit 0
+    }
+}
+
+[System.IO.File]::WriteAllText($headerPath, $newContent, $utf8NoBom)
+Write-Host ">>> Generated native secrets header at: $headerPath" -ForegroundColor Green
