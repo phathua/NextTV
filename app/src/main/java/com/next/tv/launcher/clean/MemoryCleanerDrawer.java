@@ -22,6 +22,7 @@ import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -71,6 +72,7 @@ public final class MemoryCleanerDrawer {
 
     private boolean isShowing = false;
     private boolean isSubPanelOpen = false;
+    private String modeApplyStatus = "";
     private View triggerView;
 
     private String currentSubPanelFilter = "all"; // "all", "media", "tools"
@@ -264,57 +266,72 @@ public final class MemoryCleanerDrawer {
     }
 
     private void updateRamChartAndStats(boolean isPostClean) {
+        if (donutChartView != null) donutChartView.showLoading();
+        if (tvQuickCleanResult != null && !isPostClean) tvQuickCleanResult.setText("Đang đọc dữ liệu...");
         new Thread(() -> {
-            int percent = SmartRamGovernor.getRamUsagePercent();
-            int totalMb = 1937;
-            int usedMb = 1250;
-
             try {
                 ActivityManager am = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
-                if (am != null) {
-                    ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-                    am.getMemoryInfo(mi);
-                    totalMb = (int) (mi.totalMem / (1024 * 1024));
-                    usedMb = (int) ((mi.totalMem - mi.availMem) / (1024 * 1024));
+                if (am == null) throw new IllegalStateException("Không truy cập được dịch vụ quản lý bộ nhớ");
+
+                ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                am.getMemoryInfo(mi);
+                if (mi.totalMem <= 0 || mi.availMem < 0) {
+                    throw new IllegalStateException("Thiết bị không cung cấp số liệu bộ nhớ hợp lệ");
                 }
-            } catch (Exception ignored) {}
 
-            List<LocalAdbBridge.AppProcessMem> processList = adbBridge.parseRunningProcessMem();
-            int finalTotalMb = totalMb;
-            int finalUsedMb = usedMb;
+                int totalMb = (int) Math.min(Integer.MAX_VALUE, mi.totalMem / (1024 * 1024));
+                int usedMb = (int) Math.max(0, Math.min(totalMb, (mi.totalMem - mi.availMem) / (1024 * 1024)));
+                int percent = (int) (Math.max(0, Math.min(mi.totalMem, mi.totalMem - mi.availMem)) * 100 / mi.totalMem);
+                List<LocalAdbBridge.AppProcessMem> processList = adbBridge.parseRunningProcessMem();
 
-            activity.runOnUiThread(() -> {
-                if (donutChartView != null) {
-                    donutChartView.updateData(percent, finalUsedMb, finalTotalMb, config.getMaxCachedProcesses(), processList);
+                activity.runOnUiThread(() -> {
+                    if (donutChartView == null) return;
+                    boolean updated = donutChartView.updateData(percent, usedMb, totalMb,
+                            config.getMaxCachedProcesses(), processList);
+                    if (!updated) {
+                        buildChartLegends(Collections.emptyList());
+                        return;
+                    }
                     List<RamDonutChartView.Segment> segments = donutChartView.getSegments();
                     buildChartLegends(segments);
 
-                    // Log segments info
                     StringBuilder sb = new StringBuilder();
                     for (RamDonutChartView.Segment s : segments) {
                         sb.append("[").append(s.label).append(": ").append(s.pssMb).append("MB] ");
                     }
-                    Log.i(TAG, "Donut Segments: " + sb.toString());
+                    Log.i(TAG, "Donut Segments: " + sb);
 
-                    // Ước tính số MB có thể giải phóng (không ghi đè nếu vừa dọn xong)
                     if (!isPostClean && tvQuickCleanResult != null) {
                         long estimableFreeMb = 0;
                         Set<String> whitelist = config.getWhitelistPackages();
                         for (RamDonutChartView.Segment s : segments) {
-                            if (("user".equals(s.category) || "media".equals(s.category)) && !s.packageName.equals(activity.getPackageName()) && !whitelist.contains(s.packageName)) {
+                            if (("user".equals(s.category) || "media".equals(s.category))
+                                    && !s.packageName.equals(activity.getPackageName())
+                                    && !whitelist.contains(s.packageName)) {
                                 estimableFreeMb += s.pssMb;
                             }
                         }
-                        if (estimableFreeMb > 30) {
-                            tvQuickCleanResult.setText("~" + estimableFreeMb + " MB");
-                            tvQuickCleanResult.setTextColor(Color.parseColor("#4ADE80"));
-                        } else {
-                            tvQuickCleanResult.setText("Tối ưu");
-                            tvQuickCleanResult.setTextColor(Color.parseColor("#E0E0E0"));
-                        }
+                        tvQuickCleanResult.setText(estimableFreeMb > 0
+                                ? "Có thể dọn khoảng " + estimableFreeMb + " MB"
+                                : "Chưa có ứng dụng đủ điều kiện dọn");
+                        tvQuickCleanResult.setTextColor(Color.parseColor("#E0E0E0"));
                     }
-                }
-            });
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Không đọc được số liệu bộ nhớ", e);
+                activity.runOnUiThread(() -> {
+                    if (donutChartView != null) donutChartView.showError(e.getMessage());
+                    if (containerLegends != null) {
+                        containerLegends.removeAllViews();
+                        TextView message = new TextView(activity);
+                        message.setText("Kiểm tra quyền đọc số liệu bộ nhớ của thiết bị");
+                        message.setTextColor(Color.parseColor("#FCA5A5"));
+                        message.setTextSize(12f);
+                        containerLegends.addView(message);
+                    }
+                    if (tvQuickCleanResult != null) tvQuickCleanResult.setText("Không đọc được dữ liệu");
+                });
+            }
         }).start();
     }
 
@@ -376,28 +393,31 @@ public final class MemoryCleanerDrawer {
     private void updateStatuses() {
         String mode = config.getMode();
         boolean isPreset = false;
+        String modeDescription;
 
         if (SmartRamConfigManager.MODE_GENTLE.equals(mode)) {
             tvMemoryModeStatus.setText("Nhẹ nhàng");
             tvMemoryModeStatus.setTextColor(Color.parseColor("#60A5FA"));
-            tvModeDescriptionBanner.setText("Giữ 12 app đa nhiệm · Dọn khi quá 88%");
+            modeDescription = "Giữ 12 app đa nhiệm · Dọn khi quá 88%";
             isPreset = true;
         } else if (SmartRamConfigManager.MODE_STRICT.equals(mode)) {
             tvMemoryModeStatus.setText("Nghiêm ngặt");
             tvMemoryModeStatus.setTextColor(Color.parseColor("#F87171"));
-            tvModeDescriptionBanner.setText("Giữ 2 app · Đóng băng nhanh · Dọn khi > 75%");
+            modeDescription = "Giữ 2 app · Đóng băng nhanh · Dọn khi > 75%";
             isPreset = true;
         } else if (SmartRamConfigManager.MODE_CUSTOM.equals(mode)) {
             tvMemoryModeStatus.setText("Tùy chỉnh");
             tvMemoryModeStatus.setTextColor(Color.parseColor("#FBBF24"));
-            tvModeDescriptionBanner.setText("Tùy biến thông số bộ nhớ theo ý bạn");
+            modeDescription = "Tùy biến thông số bộ nhớ theo ý bạn";
             isPreset = false;
         } else {
             tvMemoryModeStatus.setText("Tự động");
             tvMemoryModeStatus.setTextColor(Color.parseColor("#4ADE80"));
-            tvModeDescriptionBanner.setText("Giữ 6 app hay dùng · Tự dọn thông minh");
+            modeDescription = "Giữ 6 app hay dùng · Tự dọn thông minh";
             isPreset = true;
         }
+        tvModeDescriptionBanner.setText(modeApplyStatus.isEmpty()
+                ? modeDescription : modeDescription + " · " + modeApplyStatus);
 
         // Làm mờ nhẹ thông số nếu đang ở Preset chuẩn
         float childAlpha = isPreset ? 0.75f : 1.0f;
@@ -431,6 +451,27 @@ public final class MemoryCleanerDrawer {
     private void performQuickSmartClean() {
         tvQuickCleanResult.setText("Đang dọn...");
         SmartRamGovernor.cleanRamSmartAsync(activity, true, false, result -> {
+            String ramOutcome;
+            if (result.freedMb > 0 && result.killedCount > 0) {
+                ramOutcome = "RAM trống tăng " + result.freedMb + " MB; ADB chấp nhận lệnh dừng " + result.killedCount + " ứng dụng";
+            } else if (result.freedMb > 0) {
+                ramOutcome = "Đo được RAM trống tăng " + result.freedMb + " MB nhưng chưa xác nhận ứng dụng nào đã dừng";
+            } else if (result.killedCount > 0) {
+                ramOutcome = "Đã gửi lệnh dừng " + result.killedCount + " ứng dụng nhưng chưa ghi nhận RAM trống tăng";
+            } else if (result.attemptedCount > 0) {
+                ramOutcome = "Chưa xác nhận được ứng dụng nào đã dừng";
+            } else {
+                ramOutcome = "Không tìm thấy ứng dụng đủ điều kiện dọn";
+            }
+            if (!result.failureReason.isEmpty()) ramOutcome += ". " + result.failureReason;
+            if (tvQuickCleanResult != null) {
+                tvQuickCleanResult.setText(ramOutcome);
+                tvQuickCleanResult.setTextColor(result.freedMb > 0 && result.killedCount > 0
+                        ? Color.parseColor("#4ADE80") : Color.parseColor("#FBBF24"));
+            }
+            Toast.makeText(activity, ramOutcome, Toast.LENGTH_LONG).show();
+            final String cleanRamSummary = ramOutcome;
+
             // Trigger 4-Tier Deep Storage Cleaning
             new TvStorageCleaner(activity).startClean(new TvStorageCleaner.CleanProgressListener() {
                 @Override
@@ -445,20 +486,14 @@ public final class MemoryCleanerDrawer {
                 @Override
                 public void onComplete(TvStorageCleaner.CleanResult cleanRes) {
                     activity.runOnUiThread(() -> {
-                        String summary = "";
-                        if (result.freedMb > 0 || result.killedCount > 0) {
-                            summary += "-" + result.freedMb + " MB RAM";
-                        }
-                        if (cleanRes.junkBytesFreed > 0) {
-                            if (!summary.isEmpty()) summary += " | ";
-                            summary += "+" + TvStorageCleaner.formatSize(cleanRes.junkBytesFreed) + " ROM";
-                        }
-                        if (summary.isEmpty()) summary = "Đã tối ưu";
+                        String summary = cleanRes.junkBytesFreed > 0
+                                ? "Đã giải phóng " + TvStorageCleaner.formatSize(cleanRes.junkBytesFreed) + " bộ nhớ TV"
+                                : "Không tìm thấy tệp rác để xóa";
                         if (tvQuickCleanResult != null) {
-                            tvQuickCleanResult.setText(summary);
-                            tvQuickCleanResult.setTextColor(Color.parseColor("#4ADE80"));
+                            tvQuickCleanResult.setText(cleanRamSummary + ". " + summary);
+                            tvQuickCleanResult.setTextColor(cleanRes.junkBytesFreed > 0
+                                    ? Color.parseColor("#4ADE80") : Color.parseColor("#FBBF24"));
                         }
-                        Toast.makeText(activity, "Đã dọn dẹp RAM và bộ nhớ TV thành công", Toast.LENGTH_SHORT).show();
                         // Cập nhật lại biểu đồ Donut sau khi dọn xong (các app ngầm vừa bị kill sẽ biến mất)
                         updateRamChartAndStats(true);
                     });
@@ -478,8 +513,20 @@ public final class MemoryCleanerDrawer {
         } else {
             config.setMode(SmartRamConfigManager.MODE_SMART_AUTO);
         }
-        SmartRamGovernor.applyKernelLimits(activity);
+        modeApplyStatus = "Đang áp dụng giới hạn hệ thống";
         updateStatuses();
+        new Thread(() -> {
+            boolean applied = SmartRamGovernor.applyKernelLimits(activity);
+            activity.runOnUiThread(() -> {
+                modeApplyStatus = applied ? "Đã áp dụng giới hạn hệ thống" : "Chưa áp dụng được giới hạn hệ thống";
+                updateStatuses();
+                if (!applied) {
+                    Toast.makeText(activity,
+                            "Thiếu quyền WRITE_SECURE_SETTINGS hoặc ADB nội bộ chưa được cấp quyền",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
         updateRamChartAndStats();
     }
 

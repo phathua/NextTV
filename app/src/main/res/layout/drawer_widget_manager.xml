@@ -10,74 +10,151 @@
     android:clickable="true">
 
     <LinearLayout
-        android:id="@+id/widgetManagerContent"
-        android:layout_width="400dp"
+        android:id="@+id/widgetManagerPanels"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="end"
-        android:elevation="8dp"
-        android:background="#F5121215"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:paddingTop="36dp"
-        android:paddingBottom="24dp"
-        android:focusable="false"
+        android:orientation="horizontal"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:descendantFocusability="afterDescendants">
+        android:focusable="false">
 
-        <!-- Top Header -->
-        <TextView
-            android:id="@+id/tvWidgetManagerTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="QUẢN LÝ TIỆN ÍCH"
-            android:textColor="#FFFFFFFF"
-            android:textSize="18sp"
-            android:letterSpacing="0.08"
-            android:fontFamily="@string/font_medium" />
-
-        <TextView
-            android:id="@+id/tvWidgetManagerSub"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Tùy chỉnh và mở rộng tiện ích"
-            android:textColor="#A1A1AA"
-            android:textSize="12sp"
-            android:fontFamily="@string/font_regular" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="#27272A" />
-
-        <!-- Scrollable Action Items with Padding & Anti-Clipping -->
-        <ScrollView
-            android:id="@+id/scrollWidgetManager"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:scrollbars="none"
-            android:overScrollMode="never"
+        <!-- Left Sub-Panel (Detail: Store / Reorder / QR / URL) -->
+        <LinearLayout
+            android:id="@+id/widgetSubPanel"
+            android:layout_width="440dp"
+            android:layout_height="match_parent"
+            android:background="#F8121215"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="36dp"
+            android:paddingBottom="24dp"
+            android:focusable="false"
+            android:visibility="gone"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:focusable="false">
+            android:descendantFocusability="afterDescendants">
 
-            <LinearLayout
-                android:id="@+id/containerWidgetManagerItems"
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/tvWidgetSubPanelTitle"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingTop="6dp"
-                android:paddingBottom="12dp"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
+                android:text="CỬA HÀNG TIỆN ÍCH"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp"
+                android:letterSpacing="0.08"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/tvWidgetSubPanelHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Chọn tiện ích để cài đặt hoặc quản lý"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:background="#27272A" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:overScrollMode="never"
                 android:clipChildren="false"
                 android:clipToPadding="false"
-                android:focusable="false" />
-        </ScrollView>
+                android:focusable="false">
+
+                <LinearLayout
+                    android:id="@+id/containerWidgetSubPanelItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="12dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:focusable="false" />
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- Right Master Drawer Content (380dp) -->
+        <LinearLayout
+            android:id="@+id/widgetManagerContent"
+            android:layout_width="380dp"
+            android:layout_height="match_parent"
+            android:elevation="8dp"
+            android:background="#F5121215"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="36dp"
+            android:paddingBottom="24dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:focusable="false"
+            android:descendantFocusability="afterDescendants">
+
+            <TextView
+                android:id="@+id/tvWidgetManagerTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="QUẢN LÝ TIỆN ÍCH"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp"
+                android:letterSpacing="0.08"
+                android:fontFamily="@string/font_medium" />
+
+            <TextView
+                android:id="@+id/tvWidgetManagerSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Tùy chỉnh và mở rộng tiện ích"
+                android:textColor="#A1A1AA"
+                android:textSize="12sp"
+                android:fontFamily="@string/font_regular" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:background="#27272A" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:overScrollMode="never"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:focusable="false">
+
+                <LinearLayout
+                    android:id="@+id/containerWidgetManagerItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="12dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:focusable="false" />
+            </ScrollView>
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

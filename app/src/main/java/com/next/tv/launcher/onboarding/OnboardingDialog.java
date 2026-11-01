@@ -78,7 +78,6 @@ public class OnboardingDialog extends Dialog {
     private View heroPinAppsContainer, heroWallpaperContainer, heroPinContainer, heroReadyContainer;
     private ImageView ivHeroModeIcon, ivHeroWallpaperLive;
     private TextView tvHeroModeBadge, tvHeroModeSub;
-    private TextView tvHeroPinBadge, tvHeroPinSub;
     private FrameLayout heroModeIconFrame;
 
     // Dynamic Step 5 & Step 8 elements
@@ -232,8 +231,6 @@ public class OnboardingDialog extends Dialog {
         tvHeroModeSub = findViewById(R.id.tvHeroModeSub);
         heroModeIconFrame = findViewById(R.id.heroModeIconFrame);
         ivHeroWallpaperLive = findViewById(R.id.ivHeroWallpaperLive);
-        tvHeroPinBadge = findViewById(R.id.tvHeroPinBadge);
-        tvHeroPinSub = findViewById(R.id.tvHeroPinSub);
         containerMiniDockIcons = findViewById(R.id.containerMiniDockIcons);
         ivHeroReadyWallpaper = findViewById(R.id.ivHeroReadyWallpaper);
         tvHeroReadyModeBadge = findViewById(R.id.tvHeroReadyModeBadge);
@@ -963,10 +960,6 @@ public class OnboardingDialog extends Dialog {
     }
 
     private void updateHeroPinApps() {
-        if (tvHeroPinSub != null) {
-            int count = selectedPinnedKeys.size();
-            tvHeroPinSub.setText(count > 0 ? "ĐÃ GHIM " + count + " ỨNG DỤNG" : "HÀNG ỨNG DỤNG ĐÃ GHIM");
-        }
         setupMiniDock(containerMiniDockIcons);
     }
 

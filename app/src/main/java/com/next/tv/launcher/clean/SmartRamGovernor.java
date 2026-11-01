@@ -50,20 +50,35 @@ public final class SmartRamGovernor {
 
     public static class CleanResult {
         public final int killedCount;
+        public final int attemptedCount;
         public final long freedMb;
         public final int ramUsedPercentBefore;
         public final int ramUsedPercentAfter;
+        public final boolean kernelLimitsApplied;
         public final List<String> killedPackages;
         public final List<String> protectedPackages;
+        public final List<String> failedPackages;
+        public final String failureReason;
 
         public CleanResult(int killedCount, long freedMb, int ramUsedPercentBefore, int ramUsedPercentAfter,
                            List<String> killedPackages, List<String> protectedPackages) {
+            this(killedCount, killedCount, freedMb, ramUsedPercentBefore, ramUsedPercentAfter,
+                    false, killedPackages, protectedPackages, Collections.emptyList(), "");
+        }
+
+        public CleanResult(int killedCount, int attemptedCount, long freedMb, int ramUsedPercentBefore,
+                           int ramUsedPercentAfter, boolean kernelLimitsApplied, List<String> killedPackages,
+                           List<String> protectedPackages, List<String> failedPackages, String failureReason) {
             this.killedCount = killedCount;
+            this.attemptedCount = attemptedCount;
             this.freedMb = freedMb;
             this.ramUsedPercentBefore = ramUsedPercentBefore;
             this.ramUsedPercentAfter = ramUsedPercentAfter;
+            this.kernelLimitsApplied = kernelLimitsApplied;
             this.killedPackages = killedPackages;
             this.protectedPackages = protectedPackages;
+            this.failedPackages = failedPackages;
+            this.failureReason = failureReason;
         }
     }
 
@@ -86,9 +101,9 @@ public final class SmartRamGovernor {
             }
         } catch (Exception ignored) {}
 
-        if (totalKb <= 0) return 65;
-        long usedKb = totalKb - availKb;
-        return (int) ((usedKb * 100) / totalKb);
+        if (totalKb <= 0 || availKb < 0) return -1;
+        long usedKb = Math.max(0, Math.min(totalKb, totalKb - availKb));
+        return (int) (usedKb * 100 / totalKb);
     }
 
     private static long parseMemKb(String line) {
@@ -115,19 +130,30 @@ public final class SmartRamGovernor {
         String value = "max_cached_processes=" + maxCached + ",background_settle_time=" + settleTime;
         try {
             boolean ok = Settings.Global.putString(context.getContentResolver(), "activity_manager_constants", value);
-            Log.d(TAG, "Applied kernel limits via Settings.Global: " + value + " -> result=" + ok);
-            if (!ok) {
-                LocalAdbBridge.getInstance(context).executeShell("settings put global activity_manager_constants " + value);
+            String current = Settings.Global.getString(context.getContentResolver(), "activity_manager_constants");
+            if (ok && value.equals(current)) {
+                Log.i(TAG, "Applied mode=" + config.getMode() + " activity_manager_constants=" + current + " via Settings.Global");
+                return true;
             }
-            return ok;
         } catch (SecurityException e) {
-            Log.w(TAG, "Missing WRITE_SECURE_SETTINGS, applying via Local ADB: " + e.getMessage());
-            LocalAdbBridge.getInstance(context).executeShell("settings put global activity_manager_constants " + value);
-            return true;
+            Log.w(TAG, "Thiếu WRITE_SECURE_SETTINGS; thử thiết lập qua ADB nội bộ: " + e.getMessage());
         } catch (Exception e) {
-            Log.e(TAG, "Failed to apply kernel limits", e);
-            return false;
+            Log.e(TAG, "Không ghi được giới hạn bộ nhớ qua Settings.Global", e);
         }
+
+        LocalAdbBridge bridge = LocalAdbBridge.getInstance(context);
+        LocalAdbBridge.ShellCommandResult write = bridge.executeShellCommand(
+                "settings put global activity_manager_constants " + value, 4000);
+        LocalAdbBridge.ShellCommandResult read = bridge.executeShellCommand(
+                "settings get global activity_manager_constants", 4000);
+        boolean applied = write.success && read.success && value.equals(read.output.trim());
+        if (applied) {
+            Log.i(TAG, "Applied mode=" + config.getMode() + " activity_manager_constants=" + read.output.trim() + " via ADB");
+        } else {
+            Log.e(TAG, "Không áp dụng được mode=" + config.getMode() + " activity_manager_constants=" + value
+                    + "; write=" + write.error + "; read=" + read.error + "; actual=" + read.output.trim());
+        }
+        return applied;
     }
 
     /**
@@ -135,20 +161,24 @@ public final class SmartRamGovernor {
      */
     public static CleanResult cleanRamSmartSync(Context context, boolean isManualTrigger, boolean forceAll) {
         if (context == null) {
-            return new CleanResult(0, 0, 0, 0, Collections.emptyList(), Collections.emptyList());
+            return new CleanResult(0, 0, 0, 0, 0, false, Collections.emptyList(), Collections.emptyList(),
+                    Collections.emptyList(), "Không có ngữ cảnh ứng dụng");
         }
         Context appCtx = context.getApplicationContext();
         SmartRamConfigManager config = SmartRamConfigManager.getInstance(appCtx);
         ActivityManager am = (ActivityManager) appCtx.getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null) {
-            return new CleanResult(0, 0, 0, 0, Collections.emptyList(), Collections.emptyList());
+            return new CleanResult(0, 0, 0, 0, 0, false, Collections.emptyList(), Collections.emptyList(),
+                    Collections.emptyList(), "Không truy cập được dịch vụ quản lý bộ nhớ");
         }
 
         ActivityManager.MemoryInfo beforeMem = new ActivityManager.MemoryInfo();
         am.getMemoryInfo(beforeMem);
-        int ramPercentBefore = getRamUsagePercent();
+        int ramPercentBefore = calculateUsedPercent(beforeMem.totalMem, beforeMem.availMem);
 
-        applyKernelLimits(appCtx);
+        boolean kernelLimitsApplied = applyKernelLimits(appCtx);
+        Log.i(TAG, "Clean start: mode=" + config.getMode() + ", kernelLimitsApplied=" + kernelLimitsApplied
+                + ", ram=" + ramPercentBefore + "%");
 
         // Guard 1: Detect current Foreground top package
         String topPackage = getForegroundPackage(appCtx);
@@ -205,6 +235,8 @@ public final class SmartRamGovernor {
 
         List<String> killedPackages = new ArrayList<>();
         List<String> protectedPackages = new ArrayList<>();
+        List<String> failedPackages = new ArrayList<>();
+        int attemptedCount = 0;
         String myPkg = appCtx.getPackageName();
 
         for (String pkg : candidatePackages) {
@@ -247,7 +279,7 @@ public final class SmartRamGovernor {
             }
 
             // Guard 3: Grace period & Hot apps (Chỉ bảo vệ khi dọn tự động ngầm, người dùng bấm thủ công thì dọn dẹp thật)
-            boolean shouldProtectRecent = !isManualTrigger && !isEmergency;
+            boolean shouldProtectRecent = !isEmergency;
             if (shouldProtectRecent) {
                 Long lastUsed = lastUsedMap.get(pkg);
                 if (lastUsed != null && (now - lastUsed) < graceMillis) {
@@ -269,16 +301,22 @@ public final class SmartRamGovernor {
 
             // Execute Real Kill (Deep Kill via ADB am force-stop in Strict Mode or Manual)
             try {
+                attemptedCount++;
                 if (SmartRamConfigManager.MODE_STRICT.equals(config.getMode()) || isEmergency || isManualTrigger) {
-                    adbBridge.deepKillApp(pkg);
+                    if (adbBridge.deepKillApp(pkg)) {
+                        if (!killedPackages.contains(pkg)) killedPackages.add(pkg);
+                    } else if (!failedPackages.contains(pkg)) {
+                        failedPackages.add(pkg);
+                    }
                 } else {
                     am.killBackgroundProcesses(pkg);
+                    // ActivityManager không báo kết quả hoàn tất; chỉ ghi nhận đây là lần thử chưa xác nhận.
+                    if (!failedPackages.contains(pkg)) failedPackages.add(pkg);
                 }
-                adbBridge.markPackageKilled(pkg);
-                if (!killedPackages.contains(pkg)) {
-                    killedPackages.add(pkg);
-                }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                Log.w(TAG, "Không dọn được ứng dụng " + pkg, e);
+                if (!failedPackages.contains(pkg)) failedPackages.add(pkg);
+            }
         }
 
         adbBridge.markAllKilled(killedPackages);
@@ -286,19 +324,40 @@ public final class SmartRamGovernor {
         System.gc();
         try {
             Thread.sleep(400);
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
 
         ActivityManager.MemoryInfo afterMem = new ActivityManager.MemoryInfo();
         am.getMemoryInfo(afterMem);
         long memAvailDiffMb = (afterMem.availMem - beforeMem.availMem) / (1024 * 1024);
         long freedMb = Math.max(0L, memAvailDiffMb);
 
-        int ramPercentAfter = getRamUsagePercent();
-        Log.i(TAG, "SmartRAM cleaned: " + killedPackages.size() + " apps, freed ~" + freedMb + "MB (RAM: " + ramPercentBefore + "% -> " + ramPercentAfter + "%)");
-        Log.i(TAG, "Killed: " + killedPackages);
+        int ramPercentAfter = calculateUsedPercent(afterMem.totalMem, afterMem.availMem);
+        String failureReason = "";
+        if (!kernelLimitsApplied) {
+            failureReason = "Không áp dụng được giới hạn bộ nhớ; hãy kiểm tra quyền WRITE_SECURE_SETTINGS hoặc kết nối ADB nội bộ.";
+        }
+        if (!failedPackages.isEmpty()) {
+            if (!failureReason.isEmpty()) failureReason += " ";
+            failureReason += "Không xác nhận được lệnh dừng " + failedPackages.size() + " ứng dụng.";
+        }
+        Log.i(TAG, "SmartRAM finished: mode=" + config.getMode() + ", stopCommandsAccepted=" + killedPackages.size()
+                + ", attempted=" + attemptedCount + ", failedOrUnconfirmed=" + failedPackages.size()
+                + ", freed=" + freedMb + "MB, RAM=" + ramPercentBefore + "%->" + ramPercentAfter
+                + "%, kernelLimitsApplied=" + kernelLimitsApplied);
+        Log.i(TAG, "Stop commands accepted: " + killedPackages);
+        Log.i(TAG, "Failed or unconfirmed: " + failedPackages);
         Log.i(TAG, "Protected: " + protectedPackages);
 
-        return new CleanResult(killedPackages.size(), freedMb, ramPercentBefore, ramPercentAfter, killedPackages, protectedPackages);
+        return new CleanResult(killedPackages.size(), attemptedCount, freedMb, ramPercentBefore, ramPercentAfter,
+                kernelLimitsApplied, killedPackages, protectedPackages, failedPackages, failureReason);
+    }
+
+    static int calculateUsedPercent(long totalBytes, long availableBytes) {
+        if (totalBytes <= 0 || availableBytes < 0) return -1;
+        long usedBytes = Math.max(0, Math.min(totalBytes, totalBytes - availableBytes));
+        return (int) (usedBytes * 100 / totalBytes);
     }
 
     public static void cleanRamSmartAsync(Context context, boolean isManualTrigger, boolean forceAll, CleanCallback callback) {

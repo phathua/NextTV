@@ -161,13 +161,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Zero-UI trampoline activity for system-wide Search and Voice Assistant intents -->
+        <!-- Màn hình trong suốt chờ kết quả cấp quyền trước khi tiếp tục tìm kiếm. -->
         <activity
             android:name=".search.SearchTrampolineActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.NoDisplay"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
-            android:noHistory="true"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />

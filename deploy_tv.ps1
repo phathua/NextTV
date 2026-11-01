@@ -38,8 +38,55 @@ function Log-Message([string]$text) {
 # Single-line interactive status updater (Zero-clutter terminal)
 function Update-Status([string]$text, [string]$color = "Cyan") {
     Log-Message $text
-    $padded = $text.PadRight(80, ' ')
+    $width = 110
+    try {
+        if ($Host.UI.RawUI.WindowSize.Width -gt 20) {
+            $width = $Host.UI.RawUI.WindowSize.Width - 1
+        }
+    } catch {}
+    $cleanText = $text.TrimEnd()
+    if ($cleanText.Length -gt $width) {
+        $cleanText = $cleanText.Substring(0, $width)
+    }
+    $padded = $cleanText.PadRight($width, ' ')
     Write-Host "`r$padded" -NoNewline -ForegroundColor $color
+}
+
+function Connect-AdbDevice([string]$DeviceTarget) {
+    $output = @(& adb connect $DeviceTarget 2>&1)
+    $exitCode = $LASTEXITCODE
+    $outputText = ($output | Out-String).Trim()
+    Log-Message "ADB connect (exit $exitCode): $outputText"
+
+    $daemonDidNotStart = $outputText -match 'daemon not running; starting now' -and
+        $outputText -notmatch 'daemon started successfully'
+    $daemonReportedFailure = $outputText -match 'cannot connect to daemon|failed to start daemon|ADB server.*did not ACK|cannot bind'
+    if ($exitCode -ne 0 -or $daemonDidNotStart -or $daemonReportedFailure) {
+        throw "ADB connect failed (exit $exitCode): $outputText"
+    }
+
+    return $output
+}
+
+function Restart-AdbServer {
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # ADB có thể ghi thông báo bình thường ra stderr khi khởi động lại.
+        $ErrorActionPreference = 'Continue'
+        $killOutput = & adb kill-server 2>&1
+        Log-Message "ADB kill-server (exit $LASTEXITCODE): $(($killOutput | Out-String).Trim())"
+
+        Start-Sleep -Milliseconds 300
+        $startOutput = & adb start-server 2>&1
+        $startExitCode = $LASTEXITCODE
+        Log-Message "ADB start-server (exit $startExitCode): $(($startOutput | Out-String).Trim())"
+
+        if ($startExitCode -ne 0) {
+            throw "ADB server restart failed with exit code $startExitCode."
+        }
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 }
 
 # Determine display language
@@ -180,8 +227,23 @@ try {
 
     # 3. Connect ADB and handle authorization / offline
     Update-Status ($msg.Connecting -f $TvHost) "Cyan"
-    $connOut = & adb connect $deviceTarget 2>&1
-    Log-Message ($connOut | Out-String)
+    try {
+        $connOut = Connect-AdbDevice $deviceTarget
+    } catch {
+        $firstConnectError = $_.Exception.Message
+        Log-Message "ADB connect failed; restarting server before retry: $firstConnectError"
+        Write-Host "`n[!] ADB gặp lỗi; đang khởi động lại máy chủ rồi thử kết nối lại..." -ForegroundColor Yellow
+
+        try {
+            Restart-AdbServer
+            $connOut = Connect-AdbDevice $deviceTarget
+            Log-Message "ADB reconnect succeeded after server restart."
+        } catch {
+            $retryError = $_.Exception.Message
+            Log-Message "ADB reconnect failed after server restart: $retryError"
+            throw "ADB không kết nối được sau khi khởi động lại máy chủ. Lỗi lần đầu: $firstConnectError. Lỗi thử lại: $retryError"
+        }
+    }
     Start-Sleep -Milliseconds 600
 
     # Polling device status up to 10 seconds
@@ -232,18 +294,26 @@ try {
         $gradleCmd = "$repoRoot\gradlew.bat"
         $flavorCap = (Get-Culture).TextInfo.ToTitleCase($Flavor)
         $buildTarget = "assemble${flavorCap}Release"
-        $buildOut = & $gradleCmd $buildTarget --console=plain 2>&1
-        Log-Message ($buildOut | Out-String)
 
-        if ($LASTEXITCODE -ne 0) {
-            Update-Status $msg.GradleFailed "Yellow"
-            & $gradleCmd --stop 2>$null | Out-Null
-            Get-ChildItem -Path "$repoRoot\.gradle" -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-            $buildOutRetry = & $gradleCmd $buildTarget --no-daemon --console=plain 2>&1
-            Log-Message ($buildOutRetry | Out-String)
+        $prevEap = $ErrorActionPreference
+        try {
+            # Tránh việc PowerShell ngắt tiến trình khi Gradle hoặc Java compiler ghi chú cảnh báo/deprecation ra stderr
+            $ErrorActionPreference = 'Continue'
+            $buildOut = & $gradleCmd $buildTarget --console=plain 2>&1
+            Log-Message ($buildOut | Out-String)
+
             if ($LASTEXITCODE -ne 0) {
-                throw "Gradle $buildTarget failed! Check details in $logFile"
+                Update-Status $msg.GradleFailed "Yellow"
+                & $gradleCmd --stop 2>$null | Out-Null
+                Get-ChildItem -Path "$repoRoot\.gradle" -Recurse -Filter "*.lock" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+                $buildOutRetry = & $gradleCmd $buildTarget --no-daemon --console=plain 2>&1
+                Log-Message ($buildOutRetry | Out-String)
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Gradle $buildTarget failed! Check details in $logFile"
+                }
             }
+        } finally {
+            $ErrorActionPreference = $prevEap
         }
     }
 
@@ -282,13 +352,24 @@ try {
 
     # 6. Install APK on TV Box
     Update-Status ($msg.StepInstall -f $chosenType, $TvHost) "Cyan"
-    $installOutput = & adb -s $deviceTarget install -r "$apk" 2>&1 | Out-String
+    $installOutput = ""
+    try {
+        $installRaw = & adb -s $deviceTarget install -r "$apk" 2>&1
+        $installOutput = ($installRaw | Out-String)
+    } catch {
+        $installOutput = $_.Exception.Message
+    }
     Log-Message $installOutput
 
     if ($installOutput -match "INSTALL_FAILED_UPDATE_INCOMPATIBLE|INSTALL_FAILED_VERSION_DOWNGRADE|INSTALL_FAILED_SHARED_USER_INCOMPATIBLE") {
         Update-Status $msg.SigConflict "Yellow"
-        & adb -s $deviceTarget uninstall com.next.tv.launcher 2>&1 | Out-Null
-        $installOutput = & adb -s $deviceTarget install -r "$apk" 2>&1 | Out-String
+        try { & adb -s $deviceTarget uninstall com.next.tv.launcher 2>&1 | Out-Null } catch {}
+        try {
+            $installRaw = & adb -s $deviceTarget install -r "$apk" 2>&1
+            $installOutput = ($installRaw | Out-String)
+        } catch {
+            $installOutput = $_.Exception.Message
+        }
         Log-Message $installOutput
     }
 

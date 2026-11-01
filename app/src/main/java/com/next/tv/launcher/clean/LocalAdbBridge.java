@@ -54,6 +54,21 @@ public final class LocalAdbBridge {
     private static final int PORT = 5555;
     private static final int CONNECT_TIMEOUT_MS = 2500;
     private static final int DEFAULT_CMD_TIMEOUT_MS = 8000;
+    private static final String EXIT_CODE_MARKER = "__NEXTTV_EXIT_CODE__=";
+
+    public static final class ShellCommandResult {
+        public final boolean success;
+        public final int exitCode;
+        public final String output;
+        public final String error;
+
+        private ShellCommandResult(boolean success, int exitCode, String output, String error) {
+            this.success = success;
+            this.exitCode = exitCode;
+            this.output = output;
+            this.error = error;
+        }
+    }
 
     // ADB Protocol Constants (Little-Endian uint32)
     private static final int A_SYNC = 0x434e5953;
@@ -74,6 +89,8 @@ public final class LocalAdbBridge {
     private static volatile LocalAdbBridge instance;
     private final Context context;
     private volatile boolean connected = false;
+    private volatile long adbUnavailableUntilMs = 0;
+    private volatile String lastAdbFailure = "";
     private final Map<String, Long> recentlyKilledTimestamps = new ConcurrentHashMap<>();
     private PrivateKey cachedPrivateKey;
     private String cachedPublicKeyString;
@@ -353,6 +370,7 @@ public final class LocalAdbBridge {
             }
 
             if (resp == null || resp.command != A_CNXN) {
+                lastAdbFailure = "ADB chưa xác thực hoặc kết nối bị từ chối";
                 Log.w(TAG, "ADB Handshake failed or rejected by TV adbd");
                 this.connected = false;
                 return "";
@@ -368,6 +386,7 @@ public final class LocalAdbBridge {
 
             resp = AdbMessage.read(in);
             if (resp == null || resp.command != A_OKAY) {
+                lastAdbFailure = "Không mở được kênh lệnh ADB";
                 Log.w(TAG, "Failed to open shell channel for: " + command);
                 return "";
             }
@@ -393,6 +412,7 @@ public final class LocalAdbBridge {
             return sb.toString();
 
         } catch (Exception e) {
+            lastAdbFailure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             Log.w(TAG, "ADB socket connection failed: " + e.getMessage());
             this.connected = false;
             return "";
@@ -423,6 +443,71 @@ public final class LocalAdbBridge {
             return sb.toString();
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    public synchronized ShellCommandResult executeShellCommand(String command, long timeoutMs) {
+        if (!com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) {
+            return new ShellCommandResult(false, -1, "", "ADB nội bộ bị tắt trong bản dựng này");
+        }
+        if (command == null || command.trim().isEmpty()) {
+            return new ShellCommandResult(false, -1, "", "Lệnh rỗng");
+        }
+        if (System.currentTimeMillis() < adbUnavailableUntilMs) {
+            return new ShellCommandResult(false, -1, "", "ADB nội bộ đang không phản hồi; chưa thử lại trong lần dọn này");
+        }
+
+        String wrappedCommand = command + "; echo " + EXIT_CODE_MARKER + "$?";
+        lastAdbFailure = "";
+        String adbOutput = executeAdbShell(wrappedCommand, timeoutMs > 0 ? timeoutMs : DEFAULT_CMD_TIMEOUT_MS);
+        ShellCommandResult adbResult = parseShellCommandResult(adbOutput);
+        if (adbResult != null) {
+            if (adbResult.exitCode == 255 && adbResult.output.isEmpty()) {
+                adbUnavailableUntilMs = System.currentTimeMillis() + 15_000;
+            }
+            return adbResult;
+        }
+        String adbFailure = lastAdbFailure;
+        if (!adbFailure.isEmpty()) adbUnavailableUntilMs = System.currentTimeMillis() + 15_000;
+
+        try {
+            java.lang.Process process = Runtime.getRuntime().exec(new String[]{"/system/bin/sh", "-c", wrappedCommand});
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) output.append(line).append("\n");
+            }
+            boolean completed = process.waitFor(Math.max(1, timeoutMs), java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (!completed) {
+                process.destroyForcibly();
+                return new ShellCommandResult(false, -1, output.toString(), "Hết thời gian chờ lệnh");
+            }
+            ShellCommandResult localResult = parseShellCommandResult(output.toString());
+            if (localResult != null) return localResult;
+            return new ShellCommandResult(false, process.exitValue(), output.toString(),
+                    adbFailure.isEmpty() ? "Không đọc được mã kết thúc lệnh" : "ADB nội bộ: " + adbFailure);
+        } catch (Exception e) {
+            String message = "Không chạy được lệnh: " + e.getMessage();
+            if (!adbFailure.isEmpty()) message += "; ADB: " + adbFailure;
+            return new ShellCommandResult(false, -1, "", message);
+        }
+    }
+
+    static ShellCommandResult parseShellCommandResult(String rawOutput) {
+        if (rawOutput == null) return null;
+        int markerIndex = rawOutput.lastIndexOf(EXIT_CODE_MARKER);
+        if (markerIndex < 0) return null;
+        int valueStart = markerIndex + EXIT_CODE_MARKER.length();
+        int valueEnd = valueStart;
+        while (valueEnd < rawOutput.length() && Character.isDigit(rawOutput.charAt(valueEnd))) valueEnd++;
+        if (valueEnd == valueStart) return null;
+        try {
+            int exitCode = Integer.parseInt(rawOutput.substring(valueStart, valueEnd));
+            String output = rawOutput.substring(0, markerIndex).trim();
+            return new ShellCommandResult(exitCode == 0, exitCode, output,
+                    exitCode == 0 ? "" : (output.isEmpty() ? "Lệnh trả về mã " + exitCode : output));
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
@@ -510,11 +595,11 @@ public final class LocalAdbBridge {
             if (am != null) {
                 int myPid = Process.myPid();
                 android.os.Debug.MemoryInfo[] memInfos = am.getProcessMemoryInfo(new int[]{myPid});
-                long myPssKb = 120 * 1024L;
+                long myPssKb = 0;
                 if (memInfos != null && memInfos.length > 0 && memInfos[0].getTotalPss() > 0) {
                     myPssKb = memInfos[0].getTotalPss();
                 }
-                list.add(new AppProcessMem(myPkg, myPid, myPssKb, "launcher"));
+                if (myPssKb > 0) list.add(new AppProcessMem(myPkg, myPid, myPssKb, "launcher"));
 
                 List<ActivityManager.RunningAppProcessInfo> runningList = am.getRunningAppProcesses();
                 if (runningList != null) {
@@ -567,9 +652,8 @@ public final class LocalAdbBridge {
     /**
      * Dọn dẹp ứng dụng chạy ngầm triệt để bằng am force-stop và kill daemon qua ADB.
      */
-    public void deepKillApp(String packageName) {
-        if (packageName == null || packageName.isEmpty()) return;
-        markPackageKilled(packageName);
+    public boolean deepKillApp(String packageName) {
+        if (packageName == null || !packageName.matches("[A-Za-z0-9_.]+")) return false;
 
         if (!com.next.tv.launcher.BuildConfig.ENABLE_LOCAL_ADB) {
             try {
@@ -578,25 +662,24 @@ public final class LocalAdbBridge {
                     am.killBackgroundProcesses(packageName);
                 }
             } catch (Exception ignored) {}
-            return;
+            Log.w(TAG, "Không xác nhận được lệnh dừng " + packageName + ": ADB nội bộ bị tắt");
+            return false;
         }
 
-        // 1. Thực thi force-stop đặc quyền qua ADB
-        try {
-            executeAdbShell("am force-stop " + packageName, 3500);
-
-            // Nếu là Nuvio hoặc Stremio: diệt tận gốc daemon torrent / phantom process
-            if (packageName.contains("nuvio") || packageName.contains("stremio")) {
-                executeAdbShell("pkill -f torrserver; killall libtorrserver.so", 2500);
+        ShellCommandResult result = executeShellCommand("am force-stop " + packageName, 3500);
+        if (!result.success) {
+            Log.w(TAG, "Không dừng được " + packageName + " qua ADB: " + result.error);
+            try {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) am.killBackgroundProcesses(packageName);
+            } catch (Exception e) {
+                Log.w(TAG, "Dự phòng ActivityManager cũng thất bại với " + packageName, e);
             }
-        } catch (Exception ignored) {}
+            return false;
+        }
 
-        // 2. Dự phòng ActivityManager
-        try {
-            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-            if (am != null) {
-                am.killBackgroundProcesses(packageName);
-            }
-        } catch (Exception ignored) {}
+        markPackageKilled(packageName);
+        Log.i(TAG, "ADB chấp nhận lệnh dừng " + packageName);
+        return true;
     }
 }

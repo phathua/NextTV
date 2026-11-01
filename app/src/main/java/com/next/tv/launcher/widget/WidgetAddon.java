@@ -16,6 +16,7 @@ public final class WidgetAddon implements Serializable {
     private final String author;
     private final String description;
     private final String manifestUrl;
+    private final String icon;
     private final String endpoint;
     private final String template;
     private final int refreshIntervalSec;
@@ -37,12 +38,20 @@ public final class WidgetAddon implements Serializable {
             boolean isInstalled,
             boolean isEnabled
     ) {
+        this(id, name, version, author, description, manifestUrl, endpoint, template,
+                refreshIntervalSec, isBuiltIn, isInstalled, isEnabled, "");
+    }
+
+    public WidgetAddon(String id, String name, String version, String author, String description,
+            String manifestUrl, String endpoint, String template, int refreshIntervalSec,
+            boolean isBuiltIn, boolean isInstalled, boolean isEnabled, String icon) {
         this.id = id != null ? id : "";
         this.name = name != null ? name : "";
         this.version = version != null ? version : "1.0.0";
         this.author = author != null ? author : "NextTV";
         this.description = description != null ? description : "";
         this.manifestUrl = manifestUrl != null ? manifestUrl : "";
+        this.icon = icon != null ? icon.trim() : "";
         this.endpoint = endpoint != null ? endpoint : "";
         this.template = template != null ? template : "hero_metric";
         this.refreshIntervalSec = refreshIntervalSec > 0 ? refreshIntervalSec : 3600;
@@ -73,6 +82,29 @@ public final class WidgetAddon implements Serializable {
 
     public String getManifestUrl() {
         return manifestUrl;
+    }
+
+    public String getIcon() {
+        return icon;
+    }
+
+    public String resolveIconUrl(String baseUrl) {
+        if (icon.isEmpty()) return "";
+        try {
+            java.net.URI uri = new java.net.URI(icon);
+            if (!uri.isAbsolute()) {
+                java.net.URI manifest = new java.net.URI(manifestUrl);
+                if (!manifest.isAbsolute() && baseUrl != null && !baseUrl.isEmpty()) {
+                    manifest = new java.net.URI(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").resolve(manifest);
+                }
+                uri = manifest.resolve(uri);
+            }
+            String scheme = uri.getScheme();
+            return uri.getHost() != null && ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))
+                    ? uri.toString() : "";
+        } catch (java.net.URISyntaxException error) {
+            return "";
+        }
     }
 
     public String getEndpoint() {
@@ -116,6 +148,7 @@ public final class WidgetAddon implements Serializable {
             obj.put("author", author);
             obj.put("description", description);
             obj.put("manifestUrl", manifestUrl);
+            obj.put("icon", icon);
             obj.put("endpoint", endpoint);
             obj.put("template", template);
             obj.put("refreshIntervalSec", refreshIntervalSec);
@@ -140,7 +173,8 @@ public final class WidgetAddon implements Serializable {
                 obj.optInt("refreshIntervalSec", 3600),
                 obj.optBoolean("isBuiltIn", false),
                 obj.optBoolean("isInstalled", true),
-                obj.optBoolean("isEnabled", true)
+                obj.optBoolean("isEnabled", true),
+                obj.optString("icon", "")
         );
     }
 }

@@ -488,6 +488,9 @@ public final class Cards {
             space = false;
         }
         String out = b.toString().trim();
+        if ("com.google.android.youtube.tv".equals(fallback) && ("Android TV".equalsIgnoreCase(out) || out.isEmpty())) {
+            return "YouTube";
+        }
         return out.isEmpty() ? fallback : out;
     }
 

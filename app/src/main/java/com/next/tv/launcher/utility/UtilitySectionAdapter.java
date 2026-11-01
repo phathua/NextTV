@@ -341,11 +341,23 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
                 }
                 break;
             case TYPE_CLEAN_RAM:
-                com.next.tv.launcher.clean.SmartRamGovernor.cleanRamSmartAsync(context, true, true, res -> {
-                    String msg = res != null && res.killedCount > 0
-                            ? ("Đã dọn " + res.freedMb + " MB RAM")
-                            : "RAM đã ở trạng thái tối ưu";
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+                com.next.tv.launcher.clean.SmartRamGovernor.cleanRamSmartAsync(context, true, false, res -> {
+                    String msg;
+                    if (res == null) {
+                        msg = "Không nhận được kết quả dọn bộ nhớ";
+                    } else if (res.freedMb > 0 && res.killedCount > 0) {
+                        msg = "RAM trống tăng " + res.freedMb + " MB; ADB chấp nhận lệnh dừng " + res.killedCount + " ứng dụng";
+                    } else if (res.freedMb > 0) {
+                        msg = "Đo được RAM trống tăng " + res.freedMb + " MB nhưng chưa xác nhận ứng dụng nào đã dừng";
+                    } else if (res.killedCount > 0) {
+                        msg = "Đã gửi lệnh dừng " + res.killedCount + " ứng dụng nhưng chưa ghi nhận RAM trống tăng";
+                    } else if (res.attemptedCount > 0) {
+                        msg = "Chưa xác nhận được ứng dụng nào đã dừng";
+                    } else {
+                        msg = "Không tìm thấy ứng dụng đủ điều kiện dọn";
+                    }
+                    if (res != null && !res.failureReason.isEmpty()) msg += ". " + res.failureReason;
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show();
                     notifyItemChanged(position);
                 });
                 break;

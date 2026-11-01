@@ -37,12 +37,20 @@ Tạo file manifest đại diện cho widget của bạn (ví dụ: `widgets/gol
   "id": "com.community.gold-sjc",
   "name": "Giá Vàng SJC",
   "version": "1.0.0",
+  "icon": "images/icon.png",
   "template": "hero_metric",
   "description": "Cập nhật giá vàng miếng SJC và vàng nhẫn 9999 theo thời gian thực",
   "refreshIntervalSec": 1800,
   "endpoint": "https://your-worker.workers.dev/api/feed"
 }
 ```
+
+Trường `icon` là tùy chọn, nhận liên kết ảnh HTTP/HTTPS tuyệt đối hoặc đường dẫn tương đối
+với `manifest.json`. Ví dụ `images/icon.png` bên cạnh tệp cấu hình trong cùng thư mục.
+Biểu tượng được dùng trong danh sách quản lý và cửa hàng tiện ích, tải nền và lưu đệm.
+Nếu thiếu trường này, đường dẫn không hợp lệ hoặc ảnh không tải được, NextTV dùng biểu tượng
+có sẵn theo loại tiện ích. Tệp cấu hình cũ tiếp tục hoạt động mà không cần sửa.
+Ảnh hỗ trợ các định dạng bitmap như PNG, JPEG và WebP; không dùng SVG.
 
 ### Bước 2: Viết Worker Endpoint
 Triển khai hàm xử lý trả về dữ liệu tuân thủ schema `hero_metric`:

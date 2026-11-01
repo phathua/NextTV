@@ -506,9 +506,8 @@ public final class WidgetAddonManager {
                     return;
                 }
 
-                if (!obj.has("manifestUrl") || obj.optString("manifestUrl", "").isEmpty()) {
-                    obj.put("manifestUrl", cleanUrl);
-                }
+                // Đường dẫn ảnh tương đối phải dựa trên tệp vừa tải, không phải máy chủ cửa hàng.
+                obj.put("manifestUrl", cleanUrl);
 
                 WidgetAddon addon = WidgetAddon.fromJson(obj);
                 if (addon == null) {

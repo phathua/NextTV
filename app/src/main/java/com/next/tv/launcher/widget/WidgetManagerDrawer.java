@@ -1,15 +1,21 @@
 package com.next.tv.launcher.widget;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.text.InputType;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -17,13 +23,28 @@ import android.widget.Toast;
 
 import com.next.tv.launcher.MainActivity;
 import com.next.tv.launcher.R;
+import com.next.tv.launcher.util.FastPosterLoader;
 import com.next.tv.launcher.utility.UtilitySectionAdapter;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
+/**
+ * Ngăn kéo Quản lý và Cửa hàng tiện ích theo phong cách 10-foot TV cao cấp.
+ * Đồng bộ với AdvancedSettingsDrawer: nền tối OLED chống ánh sáng xanh, thẻ bo góc 12dp,
+ * nút bấm kích thước lớn dễ nhìn từ 3 mét, điều hướng D-pad trực giao mượt mà.
+ */
 public final class WidgetManagerDrawer {
+    private static final int MAIN = 0;
+    private static final int REORDER = 1;
+    private static final int STORE = 2;
+    private static final int QR = 3;
+    private static final int URL = 4;
+    private static final int CONFIRM = 5;
 
     private static final int COLOR_TEXT_PRIMARY = 0xFFF4F4F5;
     private static final int COLOR_TEXT_MUTED = 0xFF71717A;
@@ -32,36 +53,43 @@ public final class WidgetManagerDrawer {
     private static final int COLOR_TEXT_DESC_FOCUSED = 0xFF52525B;
     private static final int COLOR_ACCENT_CYAN = 0xFF38BDF8;
     private static final int COLOR_STATUS_GREEN = 0xFF22C55E;
+    private static final int COLOR_STATUS_GREEN_FOCUSED = 0xFF16A34A;
+    private static final int COLOR_STATUS_RED = 0xFFEF4444;
+    private static final int COLOR_STATUS_RED_FOCUSED = 0xFFDC2626;
     private static final int COLOR_ICON_DEFAULT = 0xFFE4E4E7;
-
-    private static final int STATE_MAIN = 0;
-    private static final int STATE_REORDER = 1;
-    private static final int STATE_STORE = 2;
-    private static final int STATE_QR = 3;
+    private static final int COLOR_ACCENT_GREEN = 0xFF4ADE80;
 
     private final Activity activity;
-    private View drawerView;
-    private View drawerContent;
-    private TextView tvTitle;
-    private TextView tvSubtitle;
-    private LinearLayout containerItems;
+    private final WidgetAddonManager manager;
+    private final List<View> menuRows = new ArrayList<>();
+    private final Set<String> installingIds = new HashSet<>();
+    private final Set<String> installingUrls = new HashSet<>();
 
-    private boolean isShowing = false;
-    private int currentState = STATE_MAIN;
+    private FrameLayout root;
+    private LinearLayout secondary;
+    private LinearLayout items;
+    private TextView panelTitle;
+    private TextView panelHint;
     private View triggerView;
 
-    private AddonConfigServer addonConfigServer;
+    private boolean showing;
+    private int state = MAIN;
+    private int selectedMenu = 0;
+    private int generation = 0;
+    private String movingId = null;
+    private List<WidgetAddon> catalog = new ArrayList<>();
+
+    private AddonConfigServer configServer;
     private Bitmap qrBitmap;
-    private ImageView ivQr;
-    private int movingWidgetIndex = -1;
-    private int lastSelectedMainMenuIndex = 0;
+    private ImageView qrImage;
 
     public WidgetManagerDrawer(Activity activity) {
         this.activity = activity;
+        this.manager = WidgetAddonManager.getInstance(activity);
     }
 
     public boolean isShowing() {
-        return isShowing;
+        return showing;
     }
 
     public void show() {
@@ -69,54 +97,88 @@ public final class WidgetManagerDrawer {
     }
 
     public void show(View trigger) {
-        if (isShowing) return;
-        this.triggerView = trigger != null ? trigger : activity.getCurrentFocus();
+        if (showing) return;
+        triggerView = trigger != null ? trigger : activity.getCurrentFocus();
 
-        LayoutInflater inflater = LayoutInflater.from(activity);
-        drawerView = inflater.inflate(R.layout.drawer_widget_manager, null);
-        drawerContent = drawerView.findViewById(R.id.widgetManagerContent);
-        tvTitle = drawerView.findViewById(R.id.tvWidgetManagerTitle);
-        tvSubtitle = drawerView.findViewById(R.id.tvWidgetManagerSub);
-        containerItems = drawerView.findViewById(R.id.containerWidgetManagerItems);
+        root = (FrameLayout) LayoutInflater.from(activity).inflate(R.layout.drawer_widget_manager, null);
+        View main = root.findViewById(R.id.widgetManagerContent);
+        int screen = activity.getResources().getDisplayMetrics().widthPixels;
+        int rightWidth = Math.min(dp(380), (int) (screen * 0.45f));
+        main.getLayoutParams().width = rightWidth;
 
-        drawerView.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    handleBackPress();
-                    return true;
-                }
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
-                    return true;
-                }
-            }
-            return false;
-        });
+        secondary = root.findViewById(R.id.widgetSubPanel);
+        secondary.getLayoutParams().width = Math.min(dp(440), screen - rightWidth);
+        panelTitle = root.findViewById(R.id.tvWidgetSubPanelTitle);
+        panelHint = root.findViewById(R.id.tvWidgetSubPanelHint);
+        items = root.findViewById(R.id.containerWidgetSubPanelItems);
 
-        showMainMenu();
+        LinearLayout menu = root.findViewById(R.id.containerWidgetManagerItems);
+        menu.removeAllViews();
+        menuRows.clear();
 
-        activity.addContentView(drawerView, new ViewGroup.LayoutParams(
+        String[] titles = {"Sắp xếp và bật tắt", "Cửa hàng tiện ích", "Cài đặt từ điện thoại", "Thêm từ liên kết"};
+        String[] hints = {"Thay đổi vị trí hoặc ẩn hiện hàng", "Duyệt kho tiện ích trực tuyến", "Quét mã QR kết nối nhanh", "Cài từ tệp cấu hình tiện ích"};
+        int[] icons = {R.drawable.ic_widget_settings, R.drawable.ic_widget_widget, R.drawable.ic_widget_phone, R.drawable.ic_widget_link};
+
+        for (int i = 0; i < titles.length; i++) {
+            final int index = i;
+            View row = createMasterMenuItem(index, titles[i], hints[i], icons[i]);
+            menu.addView(row);
+            menuRows.add(row);
+        }
+
+        activity.addContentView(root, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).blockMainContentFocus();
         }
 
-        isShowing = true;
-        if (drawerContent != null) {
-            drawerContent.setTranslationX(400f);
-            drawerContent.animate().translationX(0f).setDuration(220).start();
+        showing = true;
+        main.setTranslationX(rightWidth);
+        main.animate().translationX(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+
+        showMainMenu();
+    }
+
+    public void showMainMenu() {
+        state = MAIN;
+        generation++;
+        movingId = null;
+        stopConfigServer();
+        hideKeyboard();
+
+        if (secondary != null && secondary.getVisibility() == View.VISIBLE) {
+            secondary.animate().cancel();
+            int shift = secondary.getWidth() > 0 ? secondary.getWidth() : dp(440);
+            secondary.animate().translationX(shift).setDuration(180)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                    .withEndAction(() -> {
+                        if (state == MAIN && secondary != null) {
+                            secondary.setVisibility(View.GONE);
+                        }
+                    }).start();
+        }
+
+        paintMenu();
+        if (!menuRows.isEmpty()) {
+            View target = menuRows.get(Math.min(selectedMenu, menuRows.size() - 1));
+            target.post(() -> target.requestFocus());
         }
     }
 
     public boolean handleBackPress() {
-        if (movingWidgetIndex != -1) {
-            movingWidgetIndex = -1;
-            refreshWidgetReorderList();
+        if (movingId != null) {
+            movingId = null;
+            renderReorder();
             return true;
         }
-        if (currentState != STATE_MAIN) {
-            stopConfigServer();
+        if (state == CONFIRM) {
+            open(STORE);
+            return true;
+        }
+        if (state != MAIN) {
             showMainMenu();
             return true;
         }
@@ -124,491 +186,654 @@ public final class WidgetManagerDrawer {
         return false;
     }
 
-    public void showMainMenu() {
-        currentState = STATE_MAIN;
-        movingWidgetIndex = -1;
+    private void open(int next) {
+        boolean opening = secondary.getVisibility() != View.VISIBLE || state == MAIN;
+        secondary.animate().cancel();
+        generation++;
         stopConfigServer();
+        hideKeyboard();
+        movingId = null;
+        state = next;
 
-        if (tvTitle != null) tvTitle.setText("QUẢN LÝ TIỆN ÍCH");
-        if (tvSubtitle != null) tvSubtitle.setText("Tùy chỉnh và mở rộng tiện ích");
-        if (containerItems == null) return;
-        containerItems.removeAllViews();
+        secondary.setVisibility(View.VISIBLE);
+        int shift = secondary.getWidth() > 0 ? secondary.getWidth() : dp(440);
+        secondary.setTranslationX(opening ? shift : 0f);
+        if (opening) {
+            secondary.animate().translationX(0f).setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .withEndAction(this::focusSubpanel).start();
+        }
 
-        addMenuNavigationRow("Sắp xếp và bật tắt", "Thay đổi vị trí hoặc ẩn hiện", R.drawable.ic_widget_settings, 0, this::openWidgetReorderScreen);
-        addMenuNavigationRow("Cửa hàng tiện ích", "Duyệt kho tiện ích trực tuyến", R.drawable.ic_layers, 1, this::openWidgetStoreScreen);
-        addMenuNavigationRow("Cài đặt từ điện thoại", "Quét mã QR kết nối nhanh", R.drawable.ic_mode_tuning, 2, this::openWidgetQrScreen);
-        addMenuNavigationRow("Thêm từ liên kết", "Cài đặt bằng đường dẫn tệp cấu hình", R.drawable.ic_arrow_right, 3, this::showAddonUrlDialog);
+        switch (next) {
+            case REORDER:
+                renderReorder();
+                break;
+            case STORE:
+                renderStore();
+                final int request = generation;
+                manager.fetchStoreCatalog((list, ok) -> {
+                    if (!alive(request, STORE)) return;
+                    catalog = list == null || list.isEmpty() ? manager.buildDefaultStoreCatalog() : list;
+                    renderStore();
+                });
+                break;
+            case QR:
+                renderQr();
+                break;
+            case URL:
+                renderUrl();
+                break;
+            default:
+                showMainMenu();
+                return;
+        }
 
-        containerItems.post(() -> {
-            if (containerItems.getChildCount() > 0) {
-                int targetIdx = Math.min(lastSelectedMainMenuIndex, containerItems.getChildCount() - 1);
-                View target = containerItems.getChildAt(targetIdx >= 0 ? targetIdx : 0);
-                if (target != null) target.requestFocus();
+        if (!opening) {
+            focusSubpanel();
+        }
+    }
+
+    private void begin(String title, String hint) {
+        panelTitle.setText(title);
+        panelHint.setText(hint);
+        items.removeAllViews();
+        items.setGravity(Gravity.TOP);
+    }
+
+    private void renderStore() {
+        begin("CỬA HÀNG TIỆN ÍCH", "Chọn tiện ích để cài đặt hoặc quản lý");
+        List<WidgetAddon> list = new ArrayList<>(catalog.isEmpty() ? manager.buildDefaultStoreCatalog() : catalog);
+        Set<String> known = new HashSet<>();
+        for (WidgetAddon item : list) known.add(item.getId());
+        for (WidgetAddon item : manager.getInstalledAddons()) {
+            if (!item.isBuiltIn() && known.add(item.getId())) list.add(item);
+        }
+
+        if (list.isEmpty()) {
+            TextView empty = text("Không có tiện ích nào.", 14, COLOR_TEXT_SECONDARY);
+            empty.setPadding(dp(16), dp(24), dp(16), dp(16));
+            items.addView(empty);
+            return;
+        }
+
+        for (int i = 0; i < list.size(); i++) {
+            WidgetAddon addon = list.get(i);
+            boolean installed = manager.isInstalled(addon.getId());
+            boolean busy = installingIds.contains(addon.getId());
+            boolean builtIn = addon.isBuiltIn();
+
+            View row = createStoreItemRow(addon, installed, busy, builtIn);
+            items.addView(row);
+        }
+        restoreSubpanelFocus();
+    }
+
+    private View createStoreItemRow(WidgetAddon addon, boolean installed, boolean busy, boolean builtIn) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = (int) (8 * density);
+        row.setLayoutParams(lp);
+
+        // Icon
+        ImageView ivIcon = new ImageView(activity);
+        int iconSize = (int) (26 * density);
+        LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
+        lpIcon.rightMargin = (int) (14 * density);
+        ivIcon.setLayoutParams(lpIcon);
+        ivIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
+        boolean hasRemoteIcon = false;
+        String base = "";
+        try { base = com.next.tv.launcher.security.NativeSecurityBridge.getProxyBaseUrl(activity); } catch (Throwable ignored) {}
+        String iconUrl = addon.resolveIconUrl(base);
+        if (!iconUrl.isEmpty()) {
+            hasRemoteIcon = true;
+            ivIcon.setBackground(background(0x22FFFFFF, 0x00000000, (int) (6 * density)));
+            ivIcon.setPadding((int) (2 * density), (int) (2 * density), (int) (2 * density), (int) (2 * density));
+            FastPosterLoader.getInstance().load(Uri.parse(iconUrl), ivIcon, fallbackIcon(addon));
+        } else {
+            ivIcon.setImageResource(fallbackIcon(addon));
+            ivIcon.setColorFilter(COLOR_ICON_DEFAULT);
+        }
+        row.addView(ivIcon);
+
+        // Văn bản: Tên & Mô tả
+        LinearLayout textCol = new LinearLayout(activity);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView tvTitle = new TextView(activity);
+        tvTitle.setText(addon.getName());
+        tvTitle.setTextColor(COLOR_TEXT_PRIMARY);
+        tvTitle.setTextSize(14f);
+        tvTitle.setMaxLines(1);
+        tvTitle.setEllipsize(TextUtils.TruncateAt.END);
+        textCol.addView(tvTitle);
+
+        TextView tvSub = new TextView(activity);
+        String desc = addon.getDescription();
+        if (desc == null || desc.trim().isEmpty()) {
+            desc = builtIn ? "Tiện ích tích hợp sẵn của hệ thống" : "Tiện ích mở rộng";
+        }
+        tvSub.setText(desc);
+        tvSub.setTextColor(COLOR_TEXT_SECONDARY);
+        tvSub.setTextSize(11f);
+        tvSub.setMaxLines(1);
+        tvSub.setEllipsize(TextUtils.TruncateAt.END);
+        textCol.addView(tvSub);
+
+        row.addView(textCol);
+
+        // Nút viên thuốc hành động to rõ ràng ở bên phải
+        LinearLayout pill = new LinearLayout(activity);
+        pill.setOrientation(LinearLayout.HORIZONTAL);
+        pill.setGravity(Gravity.CENTER_VERTICAL);
+        pill.setPadding((int) (12 * density), (int) (6 * density), (int) (12 * density), (int) (6 * density));
+        LinearLayout.LayoutParams lpPill = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, (int) (32 * density));
+        lpPill.leftMargin = (int) (10 * density);
+        pill.setLayoutParams(lpPill);
+
+        ImageView ivAction = new ImageView(activity);
+        int actIconSize = (int) (14 * density);
+        LinearLayout.LayoutParams lpActIcon = new LinearLayout.LayoutParams(actIconSize, actIconSize);
+        lpActIcon.rightMargin = (int) (6 * density);
+        ivAction.setLayoutParams(lpActIcon);
+        ivAction.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        pill.addView(ivAction);
+
+        TextView tvAction = new TextView(activity);
+        tvAction.setTextSize(12f);
+        pill.addView(tvAction);
+
+        row.addView(pill);
+
+        Runnable updatePillState = () -> {
+            boolean hasFocus = row.hasFocus();
+            if (busy) {
+                ivAction.setVisibility(View.GONE);
+                tvAction.setText("Đang cài...");
+                tvAction.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_MUTED);
+                pill.setBackground(background(hasFocus ? 0x22000000 : 0x22FFFFFF, 0x00000000, (int) (8 * density)));
+            } else if (!installed) {
+                ivAction.setVisibility(View.VISIBLE);
+                ivAction.setImageResource(R.drawable.ic_widget_install);
+                tvAction.setText("Cài đặt");
+                if (hasFocus) {
+                    ivAction.setColorFilter(0xFFFFFFFF);
+                    tvAction.setTextColor(0xFFFFFFFF);
+                    pill.setBackground(background(0xFF16A34A, 0x00000000, (int) (8 * density)));
+                } else {
+                    ivAction.setColorFilter(COLOR_ACCENT_GREEN);
+                    tvAction.setTextColor(COLOR_ACCENT_GREEN);
+                    pill.setBackground(background(0x224ADE80, 0x444ADE80, (int) (8 * density)));
+                }
+            } else if (builtIn) {
+                ivAction.setVisibility(View.VISIBLE);
+                ivAction.setImageResource(R.drawable.ic_widget_enabled);
+                tvAction.setText("Đã có sẵn");
+                if (hasFocus) {
+                    ivAction.setColorFilter(0xFFFFFFFF);
+                    tvAction.setTextColor(0xFFFFFFFF);
+                    pill.setBackground(background(0xFF16A34A, 0x00000000, (int) (8 * density)));
+                } else {
+                    ivAction.setColorFilter(COLOR_STATUS_GREEN);
+                    tvAction.setTextColor(COLOR_STATUS_GREEN);
+                    pill.setBackground(background(0x1F22C55E, 0x00000000, (int) (8 * density)));
+                }
+            } else {
+                ivAction.setVisibility(View.VISIBLE);
+                ivAction.setImageResource(R.drawable.ic_widget_remove);
+                tvAction.setText("Gỡ bỏ");
+                if (hasFocus) {
+                    ivAction.setColorFilter(0xFFFFFFFF);
+                    tvAction.setTextColor(0xFFFFFFFF);
+                    pill.setBackground(background(0xFFDC2626, 0x00000000, (int) (8 * density)));
+                } else {
+                    ivAction.setColorFilter(COLOR_STATUS_RED);
+                    tvAction.setTextColor(COLOR_STATUS_RED);
+                    pill.setBackground(background(0x22EF4444, 0x44EF4444, (int) (8 * density)));
+                }
             }
+        };
+
+        updatePillState.run();
+
+        final boolean finalHasRemoteIcon = hasRemoteIcon;
+        row.setOnFocusChangeListener((v, hasFocus) -> {
+            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
+            tvTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
+            if (!finalHasRemoteIcon) {
+                ivIcon.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
+            }
+            updatePillState.run();
+        });
+
+        row.setOnClickListener(v -> {
+            if (busy) return;
+            if (!installed) {
+                install(addon);
+            } else if (builtIn) {
+                toast("Tiện ích này đã được tích hợp sẵn");
+            } else {
+                confirmRemove(addon);
+            }
+        });
+
+        row.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                showMainMenu();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_HOME) {
+                dismiss();
+                return true;
+            }
+            return false;
+        });
+
+        return row;
+    }
+
+    private void install(WidgetAddon addon) {
+        if (!installingIds.add(addon.getId())) return;
+        renderStore();
+        manager.installFromStore(addon, (success, message, result) -> {
+            installingIds.remove(addon.getId());
+            if (!showing || activity.isDestroyed() || activity.isFinishing()) return;
+            toast(success ? "Đã cài: " + addon.getName() : "Cài đặt thất bại: " + message);
+            if (state == STORE) renderStore();
         });
     }
 
-    private void openWidgetReorderScreen() {
-        currentState = STATE_REORDER;
-        movingWidgetIndex = -1;
-        if (tvTitle != null) tvTitle.setText("SẮP XẾP TIỆN ÍCH");
-        if (tvSubtitle != null) tvSubtitle.setText("Bấm OK để đổi vị trí, giữ để bật tắt");
-        refreshWidgetReorderList();
+    private void confirmRemove(WidgetAddon addon) {
+        state = CONFIRM;
+        generation++;
+        begin("GỠ TIỆN ÍCH", "Bạn muốn gỡ “" + addon.getName() + "” khỏi danh sách?");
+        View cancel = actionCard("Hủy", "Giữ lại tiện ích này", R.drawable.ic_widget_back, false);
+        View remove = actionCard("Gỡ tiện ích", "Xóa tiện ích khỏi TV", R.drawable.ic_widget_remove, true);
+
+        cancel.setOnClickListener(v -> open(STORE));
+        remove.setOnClickListener(v -> {
+            boolean removed = manager.uninstallAddon(addon.getId());
+            toast(removed ? "Đã gỡ: " + addon.getName() : "Không thể gỡ tiện ích");
+            open(STORE);
+        });
+
+        items.addView(cancel);
+        items.addView(remove);
+        cancel.post(() -> cancel.requestFocus());
     }
 
-    private void refreshWidgetReorderList() {
-        if (containerItems == null) return;
-        containerItems.removeAllViews();
+    private void renderReorder() {
+        begin("SẮP XẾP TIỆN ÍCH", movingId == null ? "Bấm OK để đổi vị trí · Giữ OK để bật/ẩn" : "Lên/Xuống để di chuyển · Bấm OK để lưu");
+        List<WidgetAddon> list = manager.getInstalledAddons();
+        if (list.isEmpty()) {
+            TextView empty = text("Chưa có tiện ích nào được cài đặt.", 14, COLOR_TEXT_SECONDARY);
+            empty.setPadding(dp(16), dp(24), dp(16), dp(16));
+            items.addView(empty);
+            return;
+        }
+
         float density = activity.getResources().getDisplayMetrics().density;
-
-        addBackNavigationRow("Quay lại danh mục", this::showMainMenu);
-
-        WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
-        List<WidgetAddon> list = addonMgr.getInstalledAddons();
 
         for (int i = 0; i < list.size(); i++) {
             final int index = i;
             final WidgetAddon addon = list.get(i);
-            final boolean isBeingMoved = (movingWidgetIndex == index);
+            final boolean isBeingMoved = addon.getId().equals(movingId);
+            final boolean isEnabled = addon.isEnabled();
 
             LinearLayout row = new LinearLayout(activity);
-            row.setTag(i);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
             row.setFocusable(true);
             row.setClickable(true);
-            row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
+            row.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
 
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = (int) (8 * density);
             row.setLayoutParams(lp);
 
+            ImageView ivIcon = new ImageView(activity);
+            int iconSize = (int) (26 * density);
+            LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
+            lpIcon.rightMargin = (int) (14 * density);
+            ivIcon.setLayoutParams(lpIcon);
+            ivIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
+            boolean hasRemoteIcon = false;
+            String base = "";
+            try { base = com.next.tv.launcher.security.NativeSecurityBridge.getProxyBaseUrl(activity); } catch (Throwable ignored) {}
+            String iconUrl = addon.resolveIconUrl(base);
+            if (!iconUrl.isEmpty()) {
+                hasRemoteIcon = true;
+                ivIcon.setBackground(background(0x22FFFFFF, 0x00000000, (int) (6 * density)));
+                ivIcon.setPadding((int) (2 * density), (int) (2 * density), (int) (2 * density), (int) (2 * density));
+                FastPosterLoader.getInstance().load(Uri.parse(iconUrl), ivIcon, fallbackIcon(addon));
+            } else {
+                ivIcon.setImageResource(isBeingMoved ? R.drawable.ic_widget_move : fallbackIcon(addon));
+                ivIcon.setColorFilter(COLOR_ICON_DEFAULT);
+            }
+            row.addView(ivIcon);
+
             LinearLayout textCol = new LinearLayout(activity);
             textCol.setOrientation(LinearLayout.VERTICAL);
             textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-            TextView tvItemTitle = new TextView(activity);
-            tvItemTitle.setText(addon.getName());
-            tvItemTitle.setTextColor(addon.isEnabled() ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED);
-            tvItemTitle.setTextSize(13f);
-            textCol.addView(tvItemTitle);
+            TextView tvTitle = new TextView(activity);
+            tvTitle.setText(addon.getName());
+            tvTitle.setTextColor(isEnabled ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED);
+            tvTitle.setTextSize(14f);
+            tvTitle.setMaxLines(1);
+            tvTitle.setEllipsize(TextUtils.TruncateAt.END);
+            textCol.addView(tvTitle);
 
-            TextView tvBadge = new TextView(activity);
-            tvBadge.setText(addon.isBuiltIn() ? "MẶC ĐỊNH" : "MỞ RỘNG");
-            tvBadge.setTextSize(10f);
-            tvBadge.setTextColor(addon.isBuiltIn() ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN);
-            tvBadge.setPadding(0, (int) (2 * density), 0, 0);
-            textCol.addView(tvBadge);
+            TextView tvSub = new TextView(activity);
+            tvSub.setTextSize(11f);
+            tvSub.setMaxLines(1);
+            tvSub.setEllipsize(TextUtils.TruncateAt.END);
+            if (isBeingMoved) {
+                tvSub.setText("Đang đổi vị trí (Lên/Xuống) · Bấm OK để lưu");
+                tvSub.setTextColor(COLOR_ACCENT_CYAN);
+            } else {
+                tvSub.setText(isEnabled ? "Bấm OK để đổi vị trí · Giữ OK để ẩn" : "Bấm OK để đổi vị trí · Giữ OK để hiện");
+                tvSub.setTextColor(COLOR_TEXT_SECONDARY);
+            }
+            textCol.addView(tvSub);
 
             row.addView(textCol);
 
-            if (isBeingMoved) {
-                TextView tvMoving = new TextView(activity);
-                tvMoving.setText("Đang đổi (▲/▼)");
-                tvMoving.setTextSize(11f);
-                tvMoving.setTextColor(COLOR_ACCENT_CYAN);
-                tvMoving.setPadding((int) (4 * density), 0, (int) (8 * density), 0);
-                row.addView(tvMoving);
-            }
-
             TextView tvStatus = new TextView(activity);
-            tvStatus.setText(addon.isEnabled() ? "Bật" : "Tắt");
-            tvStatus.setTextColor(addon.isEnabled() ? COLOR_STATUS_GREEN : COLOR_TEXT_MUTED);
             tvStatus.setTextSize(12f);
+            tvStatus.setPadding((int) (8 * density), 0, (int) (4 * density), 0);
+            if (isBeingMoved) {
+                tvStatus.setText("Đang đổi (▲/▼)");
+                tvStatus.setTextColor(COLOR_ACCENT_CYAN);
+            } else {
+                tvStatus.setText(isEnabled ? "Hiện" : "Ẩn");
+                tvStatus.setTextColor(isEnabled ? COLOR_STATUS_GREEN : COLOR_STATUS_RED);
+            }
             row.addView(tvStatus);
 
-            row.setOnClickListener(v -> {
-                int cur = (int) v.getTag();
-                if (movingWidgetIndex == cur || movingWidgetIndex != -1) {
-                    movingWidgetIndex = -1;
-                    addonMgr.saveOrderFromList(list);
-                    refreshWidgetReorderList();
+            final boolean finalHasRemoteIcon = hasRemoteIcon;
+            row.setOnFocusChangeListener((v, hasFocus) -> {
+                v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
+                tvTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (isEnabled ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED));
+                tvSub.setTextColor(hasFocus ? (isBeingMoved ? COLOR_ACCENT_CYAN : COLOR_TEXT_DESC_FOCUSED) : (isBeingMoved ? COLOR_ACCENT_CYAN : COLOR_TEXT_SECONDARY));
+                if (!finalHasRemoteIcon) {
+                    ivIcon.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
+                }
+                if (isBeingMoved) {
+                    tvStatus.setTextColor(COLOR_ACCENT_CYAN);
                 } else {
-                    movingWidgetIndex = cur;
-                    refreshWidgetReorderList();
+                    tvStatus.setTextColor(hasFocus ? (isEnabled ? COLOR_STATUS_GREEN_FOCUSED : COLOR_STATUS_RED_FOCUSED) : (isEnabled ? COLOR_STATUS_GREEN : COLOR_STATUS_RED));
+                }
+            });
+
+            row.setOnClickListener(v -> {
+                if (movingId != null && movingId.equals(addon.getId())) {
+                    movingId = null;
+                    renderReorder();
+                    focusSubpanelIndex(index);
+                } else if (movingId != null) {
+                    movingId = null;
+                    renderReorder();
+                    focusSubpanelIndex(index);
+                } else {
+                    movingId = addon.getId();
+                    renderReorder();
+                    focusSubpanelIndex(index);
                 }
             });
 
             row.setOnLongClickListener(v -> {
-                boolean newState = !addon.isEnabled();
-                addonMgr.toggleAddon(addon.getId(), newState);
-                refreshWidgetReorderList();
-                Toast.makeText(activity, (newState ? "Đã bật: " : "Đã tắt: ") + addon.getName(), Toast.LENGTH_SHORT).show();
+                movingId = null;
+                boolean nextState = !isEnabled;
+                manager.toggleAddon(addon.getId(), nextState);
+                toast((nextState ? "Đã bật: " : "Đã ẩn: ") + addon.getName());
+                renderReorder();
+                focusSubpanelIndex(index);
                 return true;
             });
 
-            row.setOnFocusChangeListener((v, hasFocus) -> {
-                v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (addon.isEnabled() ? COLOR_TEXT_PRIMARY : COLOR_TEXT_MUTED));
-            });
-
             row.setOnKeyListener((v, keyCode, event) -> {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    if (keyCode == KeyEvent.KEYCODE_HOME) {
-                        dismiss();
+                if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                if (isBeingMoved && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+                    int target = index + (keyCode == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1);
+                    if (target >= 0 && target < list.size()) {
+                        manager.moveAddonOrder(index, target);
+                        renderReorder();
+                        focusSubpanelIndex(target);
+                    }
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
+                    if (movingId != null) {
+                        movingId = null;
+                        renderReorder();
+                        focusSubpanelIndex(index);
                         return true;
                     }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                        return true; // Trap boundary
-                    }
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                        handleBackPress();
-                        return true;
-                    }
-                    if (keyCode == KeyEvent.KEYCODE_BACK) {
-                        handleBackPress();
-                        return true;
-                    }
-                    if (movingWidgetIndex != -1) {
-                        int cur = (int) v.getTag();
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                            if (cur > 0) {
-                                View prevView = containerItems.getChildAt(cur);
-                                addonMgr.moveAddonOrder(cur, cur - 1);
-                                v.setTag(cur - 1);
-                                if (prevView != null) prevView.setTag(cur);
-                                containerItems.removeView(v);
-                                containerItems.addView(v, cur);
-                                movingWidgetIndex = cur - 1;
-                                v.requestFocus();
-                            }
-                            return true;
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                            if (cur < list.size() - 1) {
-                                View nextView = containerItems.getChildAt(cur + 2);
-                                addonMgr.moveAddonOrder(cur, cur + 1);
-                                v.setTag(cur + 1);
-                                if (nextView != null) nextView.setTag(cur);
-                                containerItems.removeView(v);
-                                containerItems.addView(v, cur + 2);
-                                movingWidgetIndex = cur + 1;
-                                v.requestFocus();
-                            }
-                            return true;
-                        }
-                    }
+                    showMainMenu();
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_HOME) {
+                    dismiss();
+                    return true;
                 }
                 return false;
             });
 
-            containerItems.addView(row);
+            items.addView(row);
         }
 
-        if (containerItems.getChildCount() > 1) {
-            View target = containerItems.getChildAt(movingWidgetIndex >= 0 ? movingWidgetIndex + 1 : 1);
-            if (target != null) target.post(() -> target.requestFocus());
+        restoreSubpanelFocus();
+    }
+
+    private void renderQr() {
+        begin("CÀI QUA ĐIỆN THOẠI", "Quét mã để cài đặt và sắp xếp tiện ích");
+        items.setGravity(Gravity.CENTER_HORIZONTAL);
+        configServer = new AddonConfigServer(activity);
+        String token = String.format(Locale.US, "%06d", new SecureRandom().nextInt(900000) + 100000);
+        configServer.setSessionToken(token);
+        configServer.setEventListener(action -> {
+            if (showing && state == QR) toast("Điện thoại đã cập nhật tiện ích");
+        });
+        configServer.startSafe();
+        int port = configServer.getListeningPort();
+        if (port <= 0) {
+            items.addView(text("Không thể mở kết nối điện thoại. Hãy thử lại.", 14, COLOR_TEXT_MUTED));
+            return;
         }
-    }
 
-    private void openWidgetStoreScreen() {
-        currentState = STATE_STORE;
-        if (tvTitle != null) tvTitle.setText("CỬA HÀNG TIỆN ÍCH");
-        if (tvSubtitle != null) tvSubtitle.setText("Duyệt và cài đặt tiện ích");
-        if (containerItems == null) return;
-        containerItems.removeAllViews();
-
-        float density = activity.getResources().getDisplayMetrics().density;
-        addBackNavigationRow("Quay lại danh mục", this::showMainMenu);
-
-        TextView tvLoading = new TextView(activity);
-        tvLoading.setText("Đang nạp danh mục trực tuyến...");
-        tvLoading.setTextColor(COLOR_TEXT_MUTED);
-        tvLoading.setTextSize(13f);
-        tvLoading.setPadding((int) (14 * density), (int) (16 * density), (int) (14 * density), (int) (16 * density));
-        containerItems.addView(tvLoading);
-
-        WidgetAddonManager addonMgr = WidgetAddonManager.getInstance(activity);
-        addonMgr.fetchStoreCatalog((catalog, success) -> {
-            if (!isShowing || currentState != STATE_STORE || activity.isFinishing() || activity.isDestroyed()) {
-                return;
-            }
-
-            while (containerItems.getChildCount() > 1) {
-                containerItems.removeViewAt(1);
-            }
-            if (!success || catalog == null || catalog.isEmpty()) {
-                catalog = addonMgr.buildDefaultStoreCatalog();
-            }
-
-            for (WidgetAddon addon : catalog) {
-                final boolean isInst = addonMgr.isInstalled(addon.getId());
-
-                LinearLayout row = new LinearLayout(activity);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-                row.setFocusable(true);
-                row.setClickable(true);
-                row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
-
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.bottomMargin = (int) (8 * density);
-                row.setLayoutParams(lp);
-
-                LinearLayout textCol = new LinearLayout(activity);
-                textCol.setOrientation(LinearLayout.VERTICAL);
-                textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-                TextView tvItemTitle = new TextView(activity);
-                tvItemTitle.setText(addon.getName());
-                tvItemTitle.setTextColor(COLOR_TEXT_PRIMARY);
-                tvItemTitle.setTextSize(13f);
-                textCol.addView(tvItemTitle);
-
-                TextView tvDesc = new TextView(activity);
-                tvDesc.setText(addon.getDescription() != null && !addon.getDescription().isEmpty() ? addon.getDescription() : addon.getAuthor());
-                tvDesc.setTextColor(COLOR_TEXT_MUTED);
-                tvDesc.setTextSize(11f);
-                tvDesc.setPadding(0, (int) (2 * density), 0, 0);
-                textCol.addView(tvDesc);
-
-                row.addView(textCol);
-
-                TextView tvAction = new TextView(activity);
-                tvAction.setText(isInst ? "Đã cài" : "Cài đặt");
-                tvAction.setTextColor(isInst ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN);
-                tvAction.setTextSize(12f);
-                tvAction.setPadding((int) (8 * density), 0, 0, 0);
-                row.addView(tvAction);
-
-                row.setOnClickListener(v -> {
-                    if (isInst) {
-                        if (!addon.isBuiltIn()) {
-                            addonMgr.uninstallAddon(addon.getId());
-                            openWidgetStoreScreen();
-                            Toast.makeText(activity, "Đã gỡ tiện ích: " + addon.getName(), Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(activity, "Tiện ích hệ thống mặc định", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        addonMgr.installFromStore(addon, (ok, msg, a) -> {
-                            openWidgetStoreScreen();
-                            Toast.makeText(activity, "Đã cài đặt: " + addon.getName(), Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                });
-
-                row.setOnFocusChangeListener((v, hasFocus) -> {
-                    v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-                    tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
-                    tvDesc.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_MUTED);
-                    tvAction.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (isInst ? COLOR_TEXT_MUTED : COLOR_ACCENT_CYAN));
-                });
-
-                row.setOnKeyListener((v, keyCode, event) -> {
-                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        if (keyCode == KeyEvent.KEYCODE_HOME) {
-                            dismiss();
-                            return true;
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                            return true; // Trap boundary
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                            handleBackPress();
-                            return true;
-                        }
-                        if (keyCode == KeyEvent.KEYCODE_BACK) {
-                            handleBackPress();
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-
-                containerItems.addView(row);
-            }
-
-            if (containerItems.getChildCount() > 1) {
-                View targetRow = containerItems.getChildAt(1);
-                if (targetRow != null) targetRow.post(() -> targetRow.requestFocus());
-            }
-        });
-    }
-
-    private void openWidgetQrScreen() {
-        currentState = STATE_QR;
-        if (tvTitle != null) tvTitle.setText("CÀI QUA ĐIỆN THOẠI");
-        if (tvSubtitle != null) tvSubtitle.setText("Quét mã để điều khiển nhanh");
-        if (containerItems == null) return;
-        containerItems.removeAllViews();
-
-        float density = activity.getResources().getDisplayMetrics().density;
-        addBackNavigationRow("Quay lại danh mục", () -> {
-            stopConfigServer();
-            showMainMenu();
-        });
-
-        stopConfigServer();
-        addonConfigServer = new AddonConfigServer(activity);
-        String sessionToken = String.format(Locale.US, "%06d", new SecureRandom().nextInt(900000) + 100000);
-        addonConfigServer.setSessionToken(sessionToken);
-        addonConfigServer.setEventListener(action -> {
-            Toast.makeText(activity, "Điện thoại đã cập nhật tiện ích", Toast.LENGTH_SHORT).show();
-        });
-        addonConfigServer.startSafe();
-
-        String ip = DeviceIpAddress.get(activity);
-        int port = addonConfigServer.getListeningPort();
-        if (port <= 0) port = 8888;
-        String serverUrl = "http://" + ip + ":" + port + "/?token=" + sessionToken;
-        String displayUrl = "http://" + ip + ":" + port;
+        String address = "http://" + DeviceIpAddress.get(activity) + ":" + port;
+        int size = dp(180);
+        qrBitmap = QrCodeGenerator.generate(address + "/?token=" + token, size);
 
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-        card.setPadding((int) (18 * density), (int) (18 * density), (int) (18 * density), (int) (18 * density));
+        card.setPadding(dp(20), dp(20), dp(20), dp(20));
         card.setFocusable(true);
-        card.setClickable(true);
-
-        LinearLayout.LayoutParams lpCard = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        card.setLayoutParams(lpCard);
-
-        ivQr = new ImageView(activity);
-        int qrSize = (int) (220 * density);
-        LinearLayout.LayoutParams lpQr = new LinearLayout.LayoutParams(qrSize, qrSize);
-        ivQr.setLayoutParams(lpQr);
-
-        qrBitmap = QrCodeGenerator.generate(serverUrl, qrSize);
-        if (qrBitmap != null) {
-            ivQr.setImageBitmap(qrBitmap);
-        }
-        card.addView(ivQr);
-
-        TextView tvUrl = new TextView(activity);
-        tvUrl.setText(displayUrl);
-        tvUrl.setTextColor(COLOR_ACCENT_CYAN);
-        tvUrl.setTextSize(14f);
-        tvUrl.setPadding(0, (int) (14 * density), 0, (int) (4 * density));
-        card.addView(tvUrl);
-
-        TextView tvPin = new TextView(activity);
-        tvPin.setText("Mã xác thực: " + sessionToken);
-        tvPin.setTextColor(COLOR_TEXT_PRIMARY);
-        tvPin.setTextSize(12f);
-        tvPin.setPadding(0, 0, 0, (int) (6 * density));
-        card.addView(tvPin);
-
-        TextView tvHint = new TextView(activity);
-        tvHint.setText("Kết nối cùng Wi-Fi và quét mã bằng camera điện thoại để cài đặt hoặc sắp xếp.");
-        tvHint.setTextColor(COLOR_TEXT_SECONDARY);
-        tvHint.setTextSize(11f);
-        tvHint.setGravity(Gravity.CENTER);
-        card.addView(tvHint);
+        card.setBackground(background(0x1F27272A, 0x33FFFFFF, dp(16)));
+        card.setOnFocusChangeListener((v, focused) -> {
+            v.animate().scaleX(focused ? 1.02f : 1f).scaleY(focused ? 1.02f : 1f).setDuration(120).start();
+            v.setBackground(background(focused ? 0x2E27272A : 0x1F27272A, focused ? 0xFFFFFFFF : 0x33FFFFFF, dp(16)));
+        });
 
         card.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
-                    return true;
-                }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                    return true; // Trap boundary
-                }
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    stopConfigServer();
-                    showMainMenu();
-                    return true;
-                }
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                showMainMenu();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return true;
+            if (keyCode == KeyEvent.KEYCODE_HOME) {
+                dismiss();
+                return true;
             }
             return false;
         });
 
-        containerItems.addView(card);
+        qrImage = new ImageView(activity);
+        qrImage.setBackground(background(0xFFFFFFFF, 0x00000000, dp(12)));
+        qrImage.setPadding(dp(10), dp(10), dp(10), dp(10));
+        qrImage.setImageBitmap(qrBitmap);
+        qrImage.setContentDescription("Mã QR kết nối điện thoại");
+        card.addView(qrImage, new LinearLayout.LayoutParams(size + dp(20), size + dp(20)));
+
+        TextView tvUrl = text(address, 14, COLOR_ACCENT_CYAN);
+        tvUrl.setPadding(0, dp(14), 0, dp(6));
+        tvUrl.setTextSize(14f);
+        card.addView(tvUrl);
+
+        TextView tvToken = text("Mã xác thực: " + token, 14, COLOR_TEXT_PRIMARY);
+        tvToken.setTextSize(14f);
+        card.addView(tvToken);
+
+        TextView tvHint = text("Dùng cùng mạng Wi-Fi và quét mã bằng camera điện thoại.", 12, COLOR_TEXT_SECONDARY);
+        tvHint.setGravity(Gravity.CENTER);
+        tvHint.setPadding(0, dp(10), 0, 0);
+        card.addView(tvHint);
+
+        items.addView(card, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         card.post(() -> card.requestFocus());
     }
 
-    private void showAddonUrlDialog() {
+    private void renderUrl() {
+        begin("THÊM TỪ LIÊN KẾT", "Nhập địa chỉ tệp manifest.json của tiện ích");
+        final int request = generation;
         float density = activity.getResources().getDisplayMetrics().density;
+
         EditText input = new EditText(activity);
-        input.setHint("https://example.com/cau-hinh.json");
-        input.setTextColor(Color.WHITE);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN);
+        input.setTextColor(COLOR_TEXT_PRIMARY);
         input.setHintTextColor(COLOR_TEXT_MUTED);
-        input.setTextSize(13f);
-        input.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
+        input.setTextSize(14f);
+        input.setHint("https://example.com/manifest.json");
+        input.setPadding((int) (16 * density), (int) (14 * density), (int) (16 * density), (int) (14 * density));
+        input.setBackground(background(0x1F27272A, 0x33FFFFFF, (int) (12 * density)));
+        input.setId(R.id.widgetAddonUrlInput);
+        input.setOnFocusChangeListener((v, focused) -> {
+            input.setBackground(background(focused ? 0x2E27272A : 0x1F27272A, focused ? 0xFFFFFFFF : 0x33FFFFFF, (int) (12 * density)));
+        });
+        items.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (54 * density)));
 
-        new AlertDialog.Builder(activity, R.style.Theme_TvHome)
-                .setTitle("Thêm tiện ích từ liên kết")
-                .setMessage("Nhập liên kết tệp cấu hình tiện ích:")
-                .setView(input)
-                .setPositiveButton("Cài đặt", (dialog, which) -> {
-                    String url = input.getText().toString().trim();
-                    if (!url.isEmpty()) {
-                        Toast.makeText(activity, "Đang tải cấu hình tiện ích...", Toast.LENGTH_SHORT).show();
-                        WidgetAddonManager.getInstance(activity).installFromUrl(url, (success, msg, addon) -> {
-                            if (activity.isFinishing() || activity.isDestroyed()) return;
-                            activity.runOnUiThread(() -> {
-                                if (success) {
-                                    Toast.makeText(activity, "Cài đặt thành công: " + (addon != null ? addon.getName() : ""), Toast.LENGTH_SHORT).show();
-                                } else {
-                                    Toast.makeText(activity, "Cài đặt thất bại: " + msg, Toast.LENGTH_LONG).show();
-                                }
-                            });
-                        });
-                    }
-                })
-                .setNegativeButton("Hủy", null)
-                .show();
-    }
+        TextView status = text("", 12, COLOR_TEXT_MUTED);
+        status.setPadding(0, (int) (10 * density), 0, (int) (10 * density));
+        items.addView(status);
 
-    private void addBackNavigationRow(String title, Runnable onClick) {
-        float density = activity.getResources().getDisplayMetrics().density;
-        LinearLayout row = new LinearLayout(activity);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
-        row.setFocusable(true);
-        row.setClickable(true);
-        row.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
+        LinearLayout actions = new LinearLayout(activity);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = (int) (12 * density);
-        row.setLayoutParams(lp);
+        View install = createActionPillButton("Cài đặt", R.drawable.ic_widget_install, true);
+        View cancel = createActionPillButton("Hủy", R.drawable.ic_widget_back, false);
+        install.setId(R.id.widgetAddonUrlInstall);
+        cancel.setId(R.id.widgetAddonUrlCancel);
 
-        TextView tvBack = new TextView(activity);
-        tvBack.setText("< " + title);
-        tvBack.setTextColor(COLOR_ACCENT_CYAN);
-        tvBack.setTextSize(13f);
-        tvBack.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        row.addView(tvBack);
+        LinearLayout.LayoutParams lpInstall = new LinearLayout.LayoutParams(0, (int) (50 * density), 1f);
+        lpInstall.setMarginEnd((int) (10 * density));
+        actions.addView(install, lpInstall);
+        actions.addView(cancel, new LinearLayout.LayoutParams(0, (int) (50 * density), 1f));
+        items.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        row.setOnClickListener(v -> {
-            if (onClick != null) onClick.run();
+        install.setNextFocusUpId(input.getId());
+        cancel.setNextFocusUpId(input.getId());
+        input.setNextFocusDownId(install.getId());
+
+        install.setOnKeyListener((v, key, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (key == KeyEvent.KEYCODE_DPAD_RIGHT) { cancel.requestFocus(); return true; }
+            if (key == KeyEvent.KEYCODE_DPAD_LEFT) return true;
+            if (key == KeyEvent.KEYCODE_BACK) { showMainMenu(); return true; }
+            if (key == KeyEvent.KEYCODE_HOME) { dismiss(); return true; }
+            return false;
         });
 
-        row.setOnFocusChangeListener((v, hasFocus) -> {
-            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvBack.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ACCENT_CYAN);
+        cancel.setOnKeyListener((v, key, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (key == KeyEvent.KEYCODE_DPAD_LEFT && install.isEnabled()) { install.requestFocus(); return true; }
+            if (key == KeyEvent.KEYCODE_DPAD_RIGHT || key == KeyEvent.KEYCODE_BACK) { showMainMenu(); return true; }
+            if (key == KeyEvent.KEYCODE_HOME) { dismiss(); return true; }
+            return false;
         });
 
-        row.setOnKeyListener((v, keyCode, event) -> {
+        cancel.setOnClickListener(v -> showMainMenu());
+        install.setOnClickListener(v -> {
+            String url = input.getText().toString().trim();
+            Uri parsed = Uri.parse(url);
+            if (!("https".equalsIgnoreCase(parsed.getScheme()) || "http".equalsIgnoreCase(parsed.getScheme())) || parsed.getHost() == null) {
+                status.setText("Vui lòng nhập liên kết HTTP hoặc HTTPS hợp lệ.");
+                input.requestFocus();
+                return;
+            }
+            if (!installingUrls.add(url)) {
+                status.setText("Liên kết này đang được cài đặt.");
+                return;
+            }
+            hideKeyboard();
+            input.setEnabled(false);
+            install.setEnabled(false);
+            status.setText("Đang tải và cài đặt tiện ích...");
+            cancel.requestFocus();
+            manager.installFromUrl(url, (success, message, addon) -> {
+                installingUrls.remove(url);
+                if (!alive(request, URL)) return;
+                input.setEnabled(true);
+                install.setEnabled(true);
+                status.setText(success ? "Đã cài: " + (addon == null ? "tiện ích" : addon.getName()) : "Cài đặt thất bại: " + message);
+                install.requestFocus();
+            });
+        });
+
+        input.setOnEditorActionListener((v, action, event) -> {
+            if (action == EditorInfo.IME_ACTION_DONE) {
+                hideKeyboard();
+                install.requestFocus();
+                return true;
+            }
+            return false;
+        });
+
+        input.setOnKeyListener((v, key, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
+                if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    showMainMenu();
                     return true;
                 }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                    return true; // Trap boundary
-                }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
-                    if (onClick != null) onClick.run();
+                if (key == KeyEvent.KEYCODE_HOME) {
+                    dismiss();
                     return true;
                 }
             }
             return false;
         });
 
-        containerItems.addView(row);
+        input.post(() -> input.requestFocus());
     }
 
-    private void addMenuNavigationRow(String title, String subtitle, int iconRes, int index, Runnable onClick) {
+    private View createMasterMenuItem(int index, String title, String hint, int iconRes) {
         float density = activity.getResources().getDisplayMetrics().density;
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -616,10 +841,10 @@ public final class WidgetManagerDrawer {
         row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
         row.setFocusable(true);
         row.setClickable(true);
-        row.setPadding((int) (14 * density), (int) (12 * density), (int) (14 * density), (int) (12 * density));
+        row.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (62 * density));
         lp.bottomMargin = (int) (8 * density);
         row.setLayoutParams(lp);
 
@@ -627,7 +852,7 @@ public final class WidgetManagerDrawer {
         ivIcon.setImageResource(iconRes);
         int iconSize = (int) (22 * density);
         LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
-        lpIcon.setMarginEnd((int) (14 * density));
+        lpIcon.rightMargin = (int) (14 * density);
         ivIcon.setLayoutParams(lpIcon);
         ivIcon.setColorFilter(COLOR_ICON_DEFAULT);
         row.addView(ivIcon);
@@ -636,113 +861,288 @@ public final class WidgetManagerDrawer {
         textCol.setOrientation(LinearLayout.VERTICAL);
         textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView tvItemTitle = new TextView(activity);
-        tvItemTitle.setText(title);
-        tvItemTitle.setTextColor(COLOR_TEXT_PRIMARY);
-        tvItemTitle.setTextSize(14f);
-        textCol.addView(tvItemTitle);
+        TextView tvTitle = new TextView(activity);
+        tvTitle.setText(title);
+        tvTitle.setTextColor(COLOR_TEXT_PRIMARY);
+        tvTitle.setTextSize(14f);
+        textCol.addView(tvTitle);
 
         TextView tvSub = new TextView(activity);
-        tvSub.setText(subtitle);
-        tvSub.setTextColor(COLOR_TEXT_MUTED);
+        tvSub.setText(hint);
+        tvSub.setTextColor(COLOR_TEXT_SECONDARY);
         tvSub.setTextSize(11f);
-        tvSub.setPadding(0, (int) (2 * density), 0, 0);
         textCol.addView(tvSub);
 
         row.addView(textCol);
 
-        ImageView ivChevron = new ImageView(activity);
-        ivChevron.setImageResource(R.drawable.ic_arrow_right);
-        int chevSize = (int) (18 * density);
-        LinearLayout.LayoutParams lpChev = new LinearLayout.LayoutParams(chevSize, chevSize);
-        ivChevron.setLayoutParams(lpChev);
-        ivChevron.setColorFilter(COLOR_TEXT_MUTED);
-        row.addView(ivChevron);
-
-        row.setOnClickListener(v -> {
-            lastSelectedMainMenuIndex = index;
-            if (onClick != null) onClick.run();
-        });
-
         row.setOnFocusChangeListener((v, hasFocus) -> {
             v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
-            tvItemTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
-            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_MUTED);
+            tvTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
             ivIcon.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_ICON_DEFAULT);
-            ivChevron.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_MUTED);
+            if (!hasFocus && state != MAIN && index == selectedMenu) {
+                v.setBackground(background(0x26FFFFFF, 0x80FFFFFF, dp(12)));
+            } else if (!hasFocus) {
+                v.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+            }
+        });
+
+        row.setOnClickListener(v -> {
+            selectedMenu = index;
+            open(index + 1);
+            paintMenu();
         });
 
         row.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_HOME) {
-                    dismiss();
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_HOME) {
+                dismiss();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                int target = Math.max(0, Math.min(menuRows.size() - 1, index + (keyCode == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1)));
+                menuRows.get(target).requestFocus();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                if (state != MAIN && items != null && items.getChildCount() > 0) {
+                    focusSubpanel();
+                    return true;
+                } else {
+                    selectedMenu = index;
+                    open(index + 1);
+                    paintMenu();
                     return true;
                 }
-                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                    return true; // Trap boundary
-                }
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    dismiss();
-                    return true;
-                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                dismiss();
+                return true;
             }
             return false;
         });
 
-        containerItems.addView(row);
+        return row;
+    }
+
+    private void paintMenu() {
+        for (int i = 0; i < menuRows.size(); i++) {
+            View row = menuRows.get(i);
+            boolean isActive = (state != MAIN && i == selectedMenu);
+            if (isActive && !row.hasFocus()) {
+                row.setBackground(background(0x26FFFFFF, 0x80FFFFFF, dp(12)));
+            } else if (!row.hasFocus()) {
+                row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+            }
+        }
+    }
+
+    private void focusSubpanel() {
+        if (items == null || items.getChildCount() == 0) return;
+        View first = items.getChildAt(0);
+        if (first != null) {
+            first.post(() -> first.requestFocus());
+        }
+    }
+
+    private void focusSubpanelIndex(int targetIndex) {
+        if (items == null || items.getChildCount() == 0) return;
+        int clamped = Math.max(0, Math.min(items.getChildCount() - 1, targetIndex));
+        View target = items.getChildAt(clamped);
+        if (target != null) {
+            target.post(() -> target.requestFocus());
+        }
+    }
+
+    private void restoreSubpanelFocus() {
+        focusSubpanelIndex(0);
+    }
+
+    private View createActionPillButton(String text, int iconRes, boolean isAccent) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        LinearLayout btn = new LinearLayout(activity);
+        btn.setOrientation(LinearLayout.HORIZONTAL);
+        btn.setGravity(Gravity.CENTER);
+        btn.setFocusable(true);
+        btn.setClickable(true);
+        btn.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+        btn.setPadding((int) (14 * density), (int) (10 * density), (int) (14 * density), (int) (10 * density));
+
+        ImageView iv = new ImageView(activity);
+        iv.setImageResource(iconRes);
+        int iconSize = (int) (18 * density);
+        LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
+        lpIcon.rightMargin = (int) (8 * density);
+        iv.setLayoutParams(lpIcon);
+        iv.setColorFilter(isAccent ? COLOR_ACCENT_GREEN : COLOR_ICON_DEFAULT);
+        btn.addView(iv);
+
+        TextView tv = new TextView(activity);
+        tv.setText(text);
+        tv.setTextSize(14f);
+        tv.setTextColor(isAccent ? COLOR_ACCENT_GREEN : COLOR_TEXT_PRIMARY);
+        btn.addView(tv);
+
+        btn.setOnFocusChangeListener((v, hasFocus) -> {
+            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
+            tv.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : (isAccent ? COLOR_ACCENT_GREEN : COLOR_TEXT_PRIMARY));
+            iv.setColorFilter(hasFocus ? COLOR_TEXT_FOCUSED : (isAccent ? COLOR_ACCENT_GREEN : COLOR_ICON_DEFAULT));
+        });
+
+        return btn;
+    }
+
+    private View actionCard(String title, String subtitle, int iconRes, boolean isDestructive) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setPadding((int) (16 * density), (int) (12 * density), (int) (16 * density), (int) (12 * density));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (60 * density));
+        lp.bottomMargin = (int) (8 * density);
+        row.setLayoutParams(lp);
+
+        ImageView ivIcon = new ImageView(activity);
+        ivIcon.setImageResource(iconRes);
+        int iconSize = (int) (22 * density);
+        LinearLayout.LayoutParams lpIcon = new LinearLayout.LayoutParams(iconSize, iconSize);
+        lpIcon.rightMargin = (int) (14 * density);
+        ivIcon.setLayoutParams(lpIcon);
+        ivIcon.setColorFilter(isDestructive ? COLOR_STATUS_RED : COLOR_ICON_DEFAULT);
+        row.addView(ivIcon);
+
+        LinearLayout textCol = new LinearLayout(activity);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView tvTitle = new TextView(activity);
+        tvTitle.setText(title);
+        tvTitle.setTextColor(isDestructive ? COLOR_STATUS_RED : COLOR_TEXT_PRIMARY);
+        tvTitle.setTextSize(14f);
+        textCol.addView(tvTitle);
+
+        TextView tvSub = new TextView(activity);
+        tvSub.setText(subtitle);
+        tvSub.setTextColor(COLOR_TEXT_SECONDARY);
+        tvSub.setTextSize(11f);
+        textCol.addView(tvSub);
+
+        row.addView(textCol);
+
+        row.setOnFocusChangeListener((v, hasFocus) -> {
+            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
+            tvTitle.setTextColor(hasFocus ? (isDestructive ? COLOR_STATUS_RED_FOCUSED : COLOR_TEXT_FOCUSED) : (isDestructive ? COLOR_STATUS_RED : COLOR_TEXT_PRIMARY));
+            tvSub.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
+            ivIcon.setColorFilter(hasFocus ? (isDestructive ? COLOR_STATUS_RED_FOCUSED : COLOR_TEXT_FOCUSED) : (isDestructive ? COLOR_STATUS_RED : COLOR_ICON_DEFAULT));
+        });
+
+        row.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                open(STORE);
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return true;
+            if (keyCode == KeyEvent.KEYCODE_HOME) {
+                dismiss();
+                return true;
+            }
+            return false;
+        });
+
+        return row;
+    }
+
+    private int fallbackIcon(WidgetAddon addon) {
+        String id = addon.getId().toLowerCase(Locale.ROOT);
+        if (id.contains("weather")) return R.drawable.ic_widget_sun;
+        if (id.contains("sport")) return R.drawable.ic_widget_football;
+        if (id.contains("music") || id.contains("media")) return R.drawable.ic_widget_music;
+        if (id.contains("time") || id.contains("calendar") || id.contains("usage")) return R.drawable.ic_widget_clock;
+        if (id.contains("news")) return R.drawable.ic_widget_news;
+        if (id.contains("youtube") || id.contains("video")) return R.drawable.ic_widget_video;
+        if (id.contains("gold")) return R.drawable.ic_widget_gold;
+        if (id.contains("crypto")) return R.drawable.ic_widget_currency;
+        return R.drawable.ic_widget_widget;
+    }
+
+    private TextView text(String value, int size, int color) {
+        TextView text = new TextView(activity);
+        text.setText(value);
+        text.setTextSize(size);
+        text.setTextColor(color);
+        return text;
+    }
+
+    private GradientDrawable background(int color, int border, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        if (border != 0) {
+            drawable.setStroke(dp(1), border);
+        }
+        return drawable;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * activity.getResources().getDisplayMetrics().density);
+    }
+
+    private void toast(String message) {
+        Toast.makeText(activity, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean alive(int request, int expected) {
+        return showing && generation == request && state == expected && !activity.isFinishing() && !activity.isDestroyed();
+    }
+
+    private void hideKeyboard() {
+        if (root == null) return;
+        InputMethodManager keyboard = (InputMethodManager) activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        if (keyboard != null) keyboard.hideSoftInputFromWindow(root.getWindowToken(), 0);
     }
 
     private void stopConfigServer() {
-        if (ivQr != null) {
-            ivQr.setImageBitmap(null);
-            ivQr = null;
+        if (qrImage != null) {
+            qrImage.setImageBitmap(null);
+            qrImage = null;
         }
         if (qrBitmap != null) {
-            if (!qrBitmap.isRecycled()) {
-                qrBitmap.recycle();
-            }
+            if (!qrBitmap.isRecycled()) qrBitmap.recycle();
             qrBitmap = null;
         }
-        if (addonConfigServer != null) {
-            addonConfigServer.stopSafe();
-            addonConfigServer = null;
+        if (configServer != null) {
+            configServer.stopSafe();
+            configServer = null;
         }
     }
 
     public void dismiss() {
-        if (!isShowing || drawerView == null) return;
+        if (!showing) return;
+        hideKeyboard();
         stopConfigServer();
+        generation++;
+        showing = false;
 
+        if (root != null && root.getParent() instanceof ViewGroup) {
+            ((ViewGroup) root.getParent()).removeView(root);
+        }
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).unblockMainContentFocus();
         }
         if (triggerView != null && triggerView.isShown()) {
-            triggerView.post(() -> {
-                triggerView.requestFocus();
-                if (activity instanceof MainActivity) {
-                    ((MainActivity) activity).focusGlassOnCard(triggerView);
-                }
-            });
+            triggerView.requestFocus();
         } else if (activity instanceof MainActivity) {
             ((MainActivity) activity).focusUtilityType(UtilitySectionAdapter.TYPE_WIDGET_MANAGER);
         }
-
-        if (drawerContent != null) {
-            drawerContent.animate().translationX(400f).setDuration(180).withEndAction(() -> {
-                try {
-                    ViewGroup parent = (ViewGroup) drawerView.getParent();
-                    if (parent != null) parent.removeView(drawerView);
-                } catch (Exception ignored) {}
-                drawerView = null;
-                isShowing = false;
-            }).start();
-        } else {
-            try {
-                ViewGroup parent = (ViewGroup) drawerView.getParent();
-                if (parent != null) parent.removeView(drawerView);
-            } catch (Exception ignored) {}
-            drawerView = null;
-            isShowing = false;
-        }
+        root = null;
+        secondary = null;
+        items = null;
+        menuRows.clear();
     }
 }

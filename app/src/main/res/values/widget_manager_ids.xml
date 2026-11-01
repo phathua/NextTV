@@ -1,0 +1,5 @@
+<resources>
+    <item type="id" name="widgetAddonUrlInput" />
+    <item type="id" name="widgetAddonUrlInstall" />
+    <item type="id" name="widgetAddonUrlCancel" />
+</resources>

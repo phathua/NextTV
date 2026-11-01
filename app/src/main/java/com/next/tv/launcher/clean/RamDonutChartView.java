@@ -27,7 +27,7 @@ public final class RamDonutChartView extends View {
     public static class Segment {
         public final String label;
         public final String packageName;
-        public final long pssMb;
+        public long pssMb;
         public final int color;
         public final String category;
         public float sweepAngle;
@@ -52,11 +52,12 @@ public final class RamDonutChartView extends View {
     private final RectF arcRect = new RectF();
     private final List<Segment> segments = new ArrayList<>();
 
-    private int totalRamMb = 1937;
-    private int usedRamMb = 1250;
-    private int freeRamMb = 687;
-    private int usedPercent = 65;
+    private int totalRamMb;
+    private int usedRamMb;
+    private int freeRamMb;
+    private int usedPercent = -1;
     private float animProgress = 1.0f;
+    private String dataState = "Đang đọc dữ liệu bộ nhớ...";
 
     // Palette: High-contrast, WCAG-compliant colors
     private static final int COLOR_USER_1 = Color.parseColor("#10B981"); // Emerald Green
@@ -113,10 +114,27 @@ public final class RamDonutChartView extends View {
         textCenterBottomPaint.setFakeBoldText(true);
     }
 
-    public void updateData(int usedPercent, int usedMb, int totalMb, int maxCached, List<LocalAdbBridge.AppProcessMem> processList) {
+    public void showLoading() {
+        dataState = "Đang đọc dữ liệu bộ nhớ...";
+        segments.clear();
+        invalidate();
+    }
+
+    public void showError(String message) {
+        dataState = message == null || message.trim().isEmpty() ? "Không đọc được dữ liệu bộ nhớ" : message;
+        segments.clear();
+        invalidate();
+    }
+
+    public boolean updateData(int usedPercent, int usedMb, int totalMb, int maxCached, List<LocalAdbBridge.AppProcessMem> processList) {
+        if (totalMb <= 0 || usedMb < 0 || usedMb > totalMb) {
+            showError("Không đọc được dung lượng bộ nhớ của thiết bị");
+            return false;
+        }
+        dataState = null;
         this.usedPercent = usedPercent;
         this.usedRamMb = usedMb;
-        this.totalRamMb = totalMb > 0 ? totalMb : 1937;
+        this.totalRamMb = totalMb;
         this.freeRamMb = Math.max(0, this.totalRamMb - this.usedRamMb);
 
         segments.clear();
@@ -170,9 +188,25 @@ public final class RamDonutChartView extends View {
             segments.add(new Segment("Dịch vụ Google", "google", googleMb, COLOR_GOOGLE, "google"));
         }
 
-        // Hệ thống Android thật (system_server + systemui + HALs: giới hạn thực tế 180MB - 260MB)
-        long finalSysMb = systemMb > 0 ? Math.min(systemMb, 260) : 220;
-        segments.add(new Segment("Hệ thống Android", "system", finalSysMb, COLOR_ANDROID_SYS, "system"));
+        // PSS của các nhóm đã biết được đối chiếu với tổng bộ nhớ dùng do hệ điều hành báo cáo.
+        long knownUsedMb = systemMb;
+        for (Segment segment : segments) knownUsedMb += segment.pssMb;
+        if (knownUsedMb > usedRamMb && knownUsedMb > 0) {
+            float scale = usedRamMb / (float) knownUsedMb;
+            for (Segment segment : segments) segment.pssMb = Math.round(segment.pssMb * scale);
+            systemMb = Math.round(systemMb * scale);
+            knownUsedMb = 0;
+            for (Segment segment : segments) knownUsedMb += segment.pssMb;
+            knownUsedMb += systemMb;
+        }
+        long unclassifiedUsedMb = Math.max(0, usedRamMb - knownUsedMb);
+        if (systemMb > 0) {
+            segments.add(new Segment("Hệ thống Android", "system", systemMb, COLOR_ANDROID_SYS, "system"));
+        }
+        if (unclassifiedUsedMb > 0 || segments.isEmpty() && usedRamMb > 0) {
+            segments.add(new Segment("Hệ thống và tiến trình khác", "other-system", unclassifiedUsedMb,
+                    COLOR_ANDROID_SYS, "system"));
+        }
 
         // Phân đoạn Còn trống (Free RAM thật)
         if (freeRamMb > 20) {
@@ -199,6 +233,7 @@ public final class RamDonutChartView extends View {
             invalidate();
         });
         animator.start();
+        return true;
     }
 
     private String resolveAppLabel(PackageManager pm, String pkg) {
@@ -233,6 +268,14 @@ public final class RamDonutChartView extends View {
         float width = getWidth();
         float height = getHeight();
         if (width <= 0 || height <= 0) return;
+
+        if (dataState != null) {
+            calloutTextPaint.setTextAlign(Paint.Align.CENTER);
+            calloutTextPaint.setTextSize(16f * getResources().getDisplayMetrics().density);
+            calloutTextPaint.setColor(dataState.startsWith("Đang") ? Color.parseColor("#CBD5E1") : Color.parseColor("#FCA5A5"));
+            canvas.drawText(dataState, width / 2f, height / 2f, calloutTextPaint);
+            return;
+        }
 
         float centerX = width / 2f;
         float centerY = height / 2f;

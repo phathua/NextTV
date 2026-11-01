@@ -334,44 +334,16 @@
                             android:textColor="#E4E4E7"
                             android:textSize="10sp"
                             android:fontFamily="@string/font_medium" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="1dp"
-                            android:layout_weight="1" />
-
-                        <TextView
-                            android:id="@+id/tvHeroPinBadge"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="NextTV"
-                            android:textColor="#71717A"
-                            android:textSize="9sp"
-                            android:fontFamily="@string/font_medium" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvHeroPinSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="start|center_vertical"
-                        android:layout_marginStart="12dp"
-                        android:layout_marginBottom="16dp"
-                        android:text="HÀNG ỨNG DỤNG ĐÃ GHIM"
-                        android:textColor="#A1A1AA"
-                        android:textSize="9sp"
-                        android:fontFamily="@string/font_medium"
-                        android:letterSpacing="0.1" />
 
                     <!-- Mini Dock Icons -->
                     <LinearLayout
                         android:id="@+id/containerMiniDockIcons"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:layout_marginBottom="12dp"
+                        android:layout_gravity="center"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:gravity="center"
                         android:paddingStart="10dp"
                         android:paddingEnd="10dp">
                     </LinearLayout>
@@ -1059,10 +1031,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                android:layout_marginEnd="-56dp"
-                android:paddingEnd="56dp"
+                android:clipChildren="true"
+                android:clipToPadding="true"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 android:visibility="gone">
