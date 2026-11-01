@@ -78,7 +78,7 @@ BEGIN {
     print "" >> outPath
 
     emitBlock(outPath, "OBF_URL", url, uMask, 2, 6, "")
-    emitBlock(outPath, "OBF_SECRET", sec, sMask, 3, 5, sig)
+    emitSecretBlock(outPath, sec, sMask, 3, 5, sig)
     print "static const char* const EXPECTED_APK_SHA256 = \"" sig "\";" >> outPath
     print "" >> outPath
     emitBlock(outPath, "OBF_TMDB_KEY", tmdbK, tkMask, 2, 6, "")
@@ -104,6 +104,37 @@ function bit_xor(a, b,   res, bit, p) {
         p *= 2
     }
     return res
+}
+
+function emitSecretBlock(file, text, mask, lShift, rShift, sig,   len, mLen, outBytes, outMask, i, c, k, s, v, r, sigLen) {
+    len = length(text)
+    mLen = length(mask)
+    sigLen = length(sig)
+
+    outBytes = ""
+    if (len == 0) {
+        outBytes = "0x00"
+    } else {
+        for (i = 1; i <= len; i++) {
+            c = _ord(substr(text, i, 1))
+            k = mask[((i - 1) % mLen) + 1] + 0
+            s = (sigLen > 0) ? _ord(substr(sig, ((i - 1) % sigLen) + 1, 1)) : 0
+            v = bit_xor(bit_xor(c, k), s) % 256
+            r = ((v * (2 ^ lShift)) + int(v / (2 ^ rShift))) % 256
+            outBytes = (i > 1 ? outBytes ", " : "") sprintf("0x%02X", r)
+        }
+    }
+
+    outMask = ""
+    for (i = 1; i <= mLen; i++) {
+        outMask = (i > 1 ? outMask ", " : "") sprintf("0x%02X", mask[i] + 0)
+    }
+
+    print "static const size_t OBF_SECRET_LEN = " len ";" >> file
+    print "static const size_t OBF_MASK_LEN = " mLen ";" >> file
+    print "static const uint8_t OBF_SECRET_BYTES[] = {" outBytes "};" >> file
+    print "static const uint8_t OBF_XOR_MASK[] = {" outMask "};" >> file
+    print "" >> file
 }
 
 function emitBlock(file, prefix, text, mask, lShift, rShift, sig,   len, mLen, outBytes, outMask, i, c, k, s, v, r, sigLen) {
