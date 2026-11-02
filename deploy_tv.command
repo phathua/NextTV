@@ -4,20 +4,23 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_GREEN="\033[1;32m"
+C_RED="\033[1;31m"
+C_YELLOW="\033[1;33m"
+
 cleanup() {
     local exit_code=$?
     echo ""
-    if [[ $exit_code -eq 0 ]]; then
-        echo "=================================================="
-        echo " [✓] Hoàn tất triển khai NextTV thành công!"
-        echo "=================================================="
-    else
-        echo "=================================================="
-        echo " [X] Tiến trình kết thúc với mã lỗi: $exit_code."
-        echo "=================================================="
+    if [[ $exit_code -ne 0 ]]; then
+        printf "%b==================================================%b\n" "$C_RED" "$C_RESET"
+        printf "%b [X] Quá trình triển khai gặp lỗi (Mã lỗi: %d).%b\n" "$C_BOLD$C_RED" "$exit_code" "$C_RESET"
+        printf "%b==================================================%b\n" "$C_RED" "$C_RESET"
     fi
     echo ""
-    read -r -p "👉 Bấm phím Enter hoặc phím bất kỳ để đóng cửa sổ..." _ || true
+    printf "%b👉 Bấm phím Enter hoặc phím bất kỳ để đóng cửa sổ...%b " "$C_YELLOW" "$C_RESET"
+    read -r _ || true
     exit $exit_code
 }
 trap cleanup EXIT

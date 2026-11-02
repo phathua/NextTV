@@ -8,6 +8,16 @@ TOOLS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${TOOLS_DIR}/.." && pwd)"
 CACHE_FILE="${REPO_ROOT}/.last_tv_ip"
 
+# ANSI Colors
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_CYAN="\033[1;36m"
+C_GREEN="\033[1;32m"
+C_YELLOW="\033[1;33m"
+C_RED="\033[1;31m"
+C_WHITE="\033[1;37m"
+C_GRAY="\033[90m"
+
 OUTPUT_ALL=false
 if [[ "${1:-}" == "--all" ]]; then
     OUTPUT_ALL=true
@@ -64,7 +74,6 @@ scan_devices_on_network() {
         return
     fi
 
-    # Use fast Python multi-threading if available (takes ~1s)
     if command -v python3 >/dev/null 2>&1; then
         python3 -c "
 import socket, concurrent.futures, sys
@@ -90,7 +99,6 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=60) as ex:
         return
     fi
 
-    # Pure bash background fallback
     local tmp_file
     tmp_file=$(mktemp)
     for i in $(seq 1 254); do
@@ -161,7 +169,6 @@ SUBNET=$(detect_subnet)
 if [[ -n "$SUBNET" ]]; then
     while read -r dev; do
         if [[ -n "$dev" ]]; then
-            # Deduplicate
             already=false
             for existing in "${CANDIDATE_LIST[@]:-}"; do
                 if [[ "$existing" == "$dev" ]]; then
@@ -176,7 +183,6 @@ if [[ -n "$SUBNET" ]]; then
     done < <(scan_devices_on_network "$SUBNET")
 fi
 
-# If outputting raw candidates for caller scripts
 if [[ "$OUTPUT_ALL" == true ]]; then
     for cand in "${CANDIDATE_LIST[@]:-}"; do
         echo "__CANDIDATE__:${cand}"
@@ -184,13 +190,11 @@ if [[ "$OUTPUT_ALL" == true ]]; then
     exit 0
 fi
 
-# Handle results
 TOTAL_FOUND=${#CANDIDATE_LIST[@]}
 
 if [[ $TOTAL_FOUND -eq 0 ]]; then
-    echo "[!] Không tìm thấy thiết bị Android TV nào đang mở cổng ADB 5555 trên mạng ${SUBNET:-local}.0/24."
+    printf "%b[!] Không tìm thấy thiết bị Android TV nào đang mở cổng ADB 5555 trên mạng %s.0/24.%b\n" "$C_YELLOW" "${SUBNET:-local}" "$C_RESET"
     
-    # Check if last cached IP is present
     if [[ -f "${CACHE_FILE}" ]]; then
         CACHED_IP="$(head -n 1 "${CACHE_FILE}" | tr -d '[:space:]')"
         if [[ -n "${CACHED_IP}" ]]; then
@@ -210,29 +214,28 @@ if [[ $TOTAL_FOUND -eq 0 ]]; then
         echo "__FOUND_IP__:${manual_ip}"
         exit 0
     else
-        echo "[-] Không có IP TV. Hủy bỏ."
+        printf "%b[-] Không có IP TV. Hủy bỏ.%b\n" "$C_RED" "$C_RESET"
         exit 1
     fi
 
 elif [[ $TOTAL_FOUND -eq 1 ]]; then
     CHOSEN="${CANDIDATE_LIST[0]}"
     LABEL=$(get_device_label "$CHOSEN")
-    echo "[+] Tìm thấy 1 thiết bị Android TV: ${LABEL}"
+    printf "%b[+] Tìm thấy 1 thiết bị Android TV: %b%s%b\n" "$C_GREEN" "$C_BOLD" "${LABEL}" "$C_RESET"
     echo "${CHOSEN%%:*}" > "${CACHE_FILE}"
     echo "__FOUND_IP__:${CHOSEN}"
     exit 0
 
 else
-    # Multiple devices found: prompt interactive selection
     CACHED_IP=""
     if [[ -f "${CACHE_FILE}" ]]; then
         CACHED_IP="$(head -n 1 "${CACHE_FILE}" | tr -d '[:space:]')"
     fi
 
     echo ""
-    echo "=========================================================================="
-    echo " [?] TÌM THẤY ${TOTAL_FOUND} THIẾT BỊ ANDROID TV / CỔNG ADB ĐANG MỞ:"
-    echo "=========================================================================="
+    printf "%b==========================================================================%b\n" "$C_CYAN" "$C_RESET"
+    printf "%b [?] TÌM THẤY %d THIẾT BỊ ANDROID TV / CỔNG ADB ĐANG MỞ:%b\n" "$C_BOLD$C_CYAN" "$TOTAL_FOUND" "$C_RESET"
+    printf "%b==========================================================================%b\n" "$C_CYAN" "$C_RESET"
     
     DEFAULT_IDX=1
     for i in "${!CANDIDATE_LIST[@]}"; do
@@ -245,10 +248,10 @@ else
             marker=" (Dùng gần nhất)"
             DEFAULT_IDX=$idx
         fi
-        echo "  [$idx] ${label}${marker}"
+        printf "  %b[%d]%b %b%s%b%b%s%b\n" "$C_CYAN" "$idx" "$C_RESET" "$C_WHITE" "${label}" "$C_RESET" "$C_YELLOW" "${marker}" "$C_RESET"
     done
-    echo "  [m] Nhập địa chỉ IP / Cổng khác thủ công..."
-    echo "=========================================================================="
+    printf "  %b[m]%b %bNhập địa chỉ IP / Cổng khác thủ công...%b\n" "$C_CYAN" "$C_RESET" "$C_GRAY" "$C_RESET"
+    printf "%b==========================================================================%b\n" "$C_CYAN" "$C_RESET"
 
     while true; do
         read -r -p "👉 Vui lòng chọn thiết bị muốn sử dụng [1-${TOTAL_FOUND}] (Mặc định: ${DEFAULT_IDX}): " user_choice
@@ -263,11 +266,11 @@ else
         elif [[ "$user_choice" =~ ^[0-9]+$ ]] && (( user_choice >= 1 && user_choice <= TOTAL_FOUND )); then
             CHOSEN="${CANDIDATE_LIST[$((user_choice - 1))]}"
             echo "${CHOSEN%%:*}" > "${CACHE_FILE}"
-            echo "[+] Đã chọn thiết bị: $(get_device_label "$CHOSEN")"
+            printf "%b[+] Đã chọn thiết bị: %b%s%b\n" "$C_GREEN" "$C_BOLD" "$(get_device_label "$CHOSEN")" "$C_RESET"
             echo "__FOUND_IP__:${CHOSEN}"
             exit 0
         else
-            echo "[!] Lựa chọn không hợp lệ. Vui lòng nhập từ 1 đến ${TOTAL_FOUND}."
+            printf "%b[!] Lựa chọn không hợp lệ. Vui lòng nhập từ 1 đến %d.%b\n" "$C_RED" "$TOTAL_FOUND" "$C_RESET"
         fi
     done
 fi
