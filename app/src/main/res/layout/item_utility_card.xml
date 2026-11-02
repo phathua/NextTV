@@ -26,16 +26,31 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/utilityTitle"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#F4F4F5"
-            android:textSize="13sp"
-            android:fontFamily="@string/font_medium"
-            android:singleLine="true"
-            android:ellipsize="end"
-            android:text="Quản lý" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/utilityTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F4F4F5"
+                android:textSize="13sp"
+                android:fontFamily="@string/font_medium"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:text="Quản lý" />
+
+            <View
+                android:id="@+id/utilityBadgeDot"
+                android:layout_width="7dp"
+                android:layout_height="7dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/badge_update_dot"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/utilitySubtitle"

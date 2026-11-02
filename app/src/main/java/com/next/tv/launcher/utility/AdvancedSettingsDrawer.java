@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +23,7 @@ import com.next.tv.launcher.settings.SystemSettings;
 import com.next.tv.launcher.rec.TvRecommendationReader;
 import com.next.tv.launcher.lock.AppLockManager;
 import com.next.tv.launcher.lock.PinLockDialog;
+import com.next.tv.launcher.update.AppUpdateManager;
 
 import java.util.List;
 
@@ -66,10 +68,26 @@ public final class AdvancedSettingsDrawer {
     private View itemReorderSections;
     private View itemReducedMotion;
     private View itemDeviceInfo;
+    private View itemAppUpdate;
+    private TextView tvAppUpdateStatus;
+    private TextView badgeUpdate;
+    private final AppUpdateManager.UpdateStateListener updateStateListener;
 
     public AdvancedSettingsDrawer(Activity activity, OnAdvancedActionsListener listener) {
         this.activity = activity;
         this.actionsListener = listener;
+        this.updateStateListener = hasUpdate -> {
+            if (this.activity != null) {
+                this.activity.runOnUiThread(() -> {
+                    if (isShowing) {
+                        updateStatuses();
+                        if (isSubPanelOpen && lastOpenedSourceItem == itemAppUpdate) {
+                            openUpdateSubPanel();
+                        }
+                    }
+                });
+            }
+        };
     }
 
     public boolean isShowing() {
@@ -106,6 +124,10 @@ public final class AdvancedSettingsDrawer {
         itemUserMode = drawerView.findViewById(R.id.itemUserMode);
         tvUserModeStatus = drawerView.findViewById(R.id.tvUserModeStatus);
 
+        itemAppUpdate = drawerView.findViewById(R.id.itemAppUpdate);
+        tvAppUpdateStatus = drawerView.findViewById(R.id.tvAppUpdateStatus);
+        badgeUpdate = drawerView.findViewById(R.id.badgeUpdate);
+
         updateStatuses();
 
         itemManagePin = drawerView.findViewById(R.id.itemManagePin);
@@ -118,6 +140,7 @@ public final class AdvancedSettingsDrawer {
         setupItemFocus(itemReducedMotion);
         setupItemFocus(itemDeviceInfo);
         setupItemFocus(itemUserMode);
+        setupItemFocus(itemAppUpdate);
 
         View.OnKeyListener masterItemKeyListener = (v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -142,6 +165,10 @@ public final class AdvancedSettingsDrawer {
         if (itemReorderSections != null) itemReorderSections.setOnKeyListener(masterItemKeyListener);
         if (itemReducedMotion != null) itemReducedMotion.setOnKeyListener(masterItemKeyListener);
         if (itemDeviceInfo != null) itemDeviceInfo.setOnKeyListener(masterItemKeyListener);
+        if (itemAppUpdate != null) {
+            itemAppUpdate.setOnKeyListener(masterItemKeyListener);
+            itemAppUpdate.setOnClickListener(v -> { lastOpenedSourceItem = itemAppUpdate; openUpdateSubPanel(); });
+        }
         if (itemUserMode != null) {
             itemUserMode.setOnKeyListener(masterItemKeyListener);
             itemUserMode.setOnClickListener(v -> { lastOpenedSourceItem = itemUserMode; openUserModeSubPanel(); });
@@ -203,6 +230,7 @@ public final class AdvancedSettingsDrawer {
 
         isShowing = true;
         isSubPanelOpen = false;
+        AppUpdateManager.getInstance(activity).registerListener(updateStateListener);
         if (drawerContent != null) {
             drawerContent.setTranslationX(400f);
             drawerContent.animate().translationX(0f).setDuration(220).start();
@@ -215,6 +243,244 @@ public final class AdvancedSettingsDrawer {
                 itemManagePin.post(() -> itemManagePin.requestFocus());
             }
         }
+    }
+
+    private void openUpdateSubPanel() {
+        if (advancedSubPanel == null || containerSubPanelItems == null) return;
+        isSubPanelOpen = true;
+
+        if (tvSubPanelTitle != null) tvSubPanelTitle.setText("CẬP NHẬT ỨNG DỤNG");
+        if (tvSubPanelSub != null) tvSubPanelSub.setText("Thông tin phiên bản & thay đổi");
+        containerSubPanelItems.removeAllViews();
+
+        float density = activity.getResources().getDisplayMetrics().density;
+        AppUpdateManager updateMgr = AppUpdateManager.getInstance(activity);
+        boolean hasUpdate = updateMgr.isUpdateAvailable();
+        boolean isSideload = updateMgr.isSideload();
+        String currentVer = updateMgr.getCurrentVersion();
+        String latestVer = updateMgr.getLatestVersion();
+
+        // 1. Khung trạng thái phiên bản
+        LinearLayout statusCard = new LinearLayout(activity);
+        statusCard.setOrientation(LinearLayout.VERTICAL);
+        statusCard.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+        statusCard.setPadding((int) (16 * density), (int) (14 * density), (int) (16 * density), (int) (14 * density));
+        LinearLayout.LayoutParams lpStatus = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lpStatus.bottomMargin = (int) (12 * density);
+        statusCard.setLayoutParams(lpStatus);
+
+        TextView tvCardVer = new TextView(activity);
+        tvCardVer.setText(hasUpdate ? ("Bản mới: v" + latestVer) : ("Phiên bản: v" + currentVer));
+        tvCardVer.setTextColor(COLOR_TEXT_PRIMARY);
+        tvCardVer.setTextSize(15f);
+        statusCard.addView(tvCardVer);
+
+        TextView tvCardSub = new TextView(activity);
+        if (hasUpdate) {
+            tvCardSub.setText("Bản hiện tại: v" + currentVer + " • Đã có bản mới sẵn sàng");
+            tvCardSub.setTextColor(COLOR_ACCENT_CYAN);
+        } else {
+            tvCardSub.setText("Bạn đang sử dụng phiên bản mới nhất của NextTV");
+            tvCardSub.setTextColor(COLOR_STATUS_GREEN);
+        }
+        tvCardSub.setTextSize(11f);
+        tvCardSub.setPadding(0, (int) (4 * density), 0, 0);
+        statusCard.addView(tvCardSub);
+
+        containerSubPanelItems.addView(statusCard);
+
+        // 2. Nút hành động Cập nhật / Kiểm tra
+        LinearLayout actionBtn = new LinearLayout(activity);
+        actionBtn.setId(R.id.btnActionUpdate);
+        actionBtn.setOrientation(LinearLayout.VERTICAL);
+        actionBtn.setGravity(Gravity.CENTER);
+        actionBtn.setBackgroundResource(R.drawable.drawer_menu_item_bg);
+        actionBtn.setFocusable(true);
+        actionBtn.setClickable(true);
+        actionBtn.setPadding((int) (16 * density), (int) (14 * density), (int) (16 * density), (int) (14 * density));
+        LinearLayout.LayoutParams lpAction = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lpAction.bottomMargin = (int) (14 * density);
+        actionBtn.setLayoutParams(lpAction);
+
+        TextView tvActionTitle = new TextView(activity);
+        tvActionTitle.setTextSize(14f);
+        tvActionTitle.setTextColor(COLOR_TEXT_PRIMARY);
+
+        TextView tvActionDesc = new TextView(activity);
+        tvActionDesc.setTextSize(11f);
+        tvActionDesc.setTextColor(COLOR_TEXT_SECONDARY);
+        tvActionDesc.setPadding(0, (int) (2 * density), 0, 0);
+
+        // Thanh tiến trình tải tệp (cho bản Sideload khi đang tải)
+        ProgressBar pbDownload = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
+        pbDownload.setId(R.id.subPanelUpdateProgressBar);
+        pbDownload.setMax(100);
+        pbDownload.setVisibility(View.GONE);
+        LinearLayout.LayoutParams lpPb = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (int) (6 * density));
+        lpPb.topMargin = (int) (8 * density);
+        pbDownload.setLayoutParams(lpPb);
+        pbDownload.setProgressDrawable(activity.getDrawable(R.drawable.ram_progress_bar_bg));
+
+        if (isSideload) {
+            if (hasUpdate) {
+                long apkSize = updateMgr.getApkSize();
+                String sizeStr = apkSize > 0 ? String.format(java.util.Locale.getDefault(), " (%.1f MB)", apkSize / (1024f * 1024f)) : "";
+                tvActionTitle.setText("Tải và cài đặt cập nhật");
+                tvActionDesc.setText("Nhấn để tải gói APK cập nhật mới" + sizeStr);
+            } else {
+                tvActionTitle.setText("Kiểm tra bản mới");
+                tvActionDesc.setText("Quét kho cập nhật GitHub phathua/NextTV");
+            }
+        } else {
+            // Google Play build
+            if (hasUpdate) {
+                tvActionTitle.setText("Cập nhật qua CH Play");
+                tvActionDesc.setText("Mở Google Play Store để cài đặt phiên bản mới");
+            } else {
+                tvActionTitle.setText("Xem trên CH Play");
+                tvActionDesc.setText("Mở trang NextTV trên Google Play Store");
+            }
+        }
+
+        actionBtn.addView(tvActionTitle);
+        actionBtn.addView(tvActionDesc);
+        actionBtn.addView(pbDownload);
+
+        actionBtn.setOnClickListener(v -> {
+            if (isSideload) {
+                if (hasUpdate) {
+                    if (updateMgr.isDownloading()) return;
+                    tvActionTitle.setText("Đang chuẩn bị tải...");
+                    tvActionDesc.setText("Vui lòng giữ TV kết nối mạng");
+                    pbDownload.setVisibility(View.VISIBLE);
+                    pbDownload.setProgress(0);
+
+                    updateMgr.downloadAndInstall(activity, new AppUpdateManager.DownloadProgressListener() {
+                        @Override
+                        public void onProgress(long downloadedBytes, long totalBytes, int percent) {
+                            if (percent >= 0) {
+                                pbDownload.setProgress(percent);
+                                float mbDown = downloadedBytes / (1024f * 1024f);
+                                float mbTotal = totalBytes / (1024f * 1024f);
+                                tvActionTitle.setText("Đang tải bản cập nhật: " + percent + "%");
+                                tvActionDesc.setText(String.format(java.util.Locale.getDefault(), "%.1f / %.1f MB", mbDown, mbTotal));
+                            }
+                        }
+
+                        @Override
+                        public void onSuccess(java.io.File downloadedApk) {
+                            pbDownload.setVisibility(View.GONE);
+                            tvActionTitle.setText("Đã tải xong!");
+                            tvActionDesc.setText("Đang kích hoạt trình cài đặt...");
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            pbDownload.setVisibility(View.GONE);
+                            tvActionTitle.setText("Tải và cài đặt cập nhật");
+                            tvActionDesc.setText("Lỗi: " + errorMessage + " (Nhấn để thử lại)");
+                            Toast.makeText(activity, errorMessage, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } else {
+                    tvActionTitle.setText("Đang kiểm tra...");
+                    tvActionDesc.setText("Kết nối kho phathua/NextTV...");
+                    updateMgr.checkForUpdates(true, new AppUpdateManager.UpdateCheckCallback() {
+                        @Override
+                        public void onCheckCompleted(boolean hasUp, String latestV, List<String> changelog) {
+                            updateStatuses();
+                            openUpdateSubPanel();
+                            String msg = hasUp ? ("Đã tìm thấy bản mới: v" + latestV) : "Đang sử dụng bản mới nhất";
+                            Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onCheckFailed(String error) {
+                            openUpdateSubPanel();
+                            Toast.makeText(activity, error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            } else {
+                updateMgr.openPlayStore(activity);
+            }
+        });
+
+        actionBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            v.animate().scaleX(hasFocus ? 1.03f : 1.0f).scaleY(hasFocus ? 1.03f : 1.0f).setDuration(120).start();
+            tvActionTitle.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
+            tvActionDesc.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
+        });
+
+        actionBtn.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_HOME) {
+                    dismiss();
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_BACK) {
+                    closeSubPanel();
+                    return true;
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        containerSubPanelItems.addView(actionBtn);
+
+        // 3. Tiêu đề mục Thay đổi
+        TextView tvChangelogHeader = new TextView(activity);
+        tvChangelogHeader.setText("CÁC THAY ĐỔI MỚI");
+        tvChangelogHeader.setTextSize(12f);
+        tvChangelogHeader.setTextColor(COLOR_TEXT_SECONDARY);
+        tvChangelogHeader.setLetterSpacing(0.06f);
+        tvChangelogHeader.setPadding(0, 0, 0, (int) (8 * density));
+        containerSubPanelItems.addView(tvChangelogHeader);
+
+        // 4. Danh sách các commit / thay đổi (không hiển thị mã số commit)
+        List<String> changelog = updateMgr.getCleanChangelog();
+        if (changelog != null && !changelog.isEmpty()) {
+            for (String change : changelog) {
+                LinearLayout itemRow = new LinearLayout(activity);
+                itemRow.setOrientation(LinearLayout.HORIZONTAL);
+                itemRow.setGravity(Gravity.TOP);
+                itemRow.setPadding(0, (int) (4 * density), 0, (int) (6 * density));
+
+                TextView bullet = new TextView(activity);
+                bullet.setText("•");
+                bullet.setTextSize(14f);
+                bullet.setTextColor(COLOR_ACCENT_CYAN);
+                bullet.setPadding(0, 0, (int) (8 * density), 0);
+                itemRow.addView(bullet);
+
+                TextView tvChange = new TextView(activity);
+                tvChange.setText(change);
+                tvChange.setTextSize(12f);
+                tvChange.setTextColor(COLOR_TEXT_PRIMARY);
+                tvChange.setLayoutParams(new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                itemRow.addView(tvChange);
+
+                containerSubPanelItems.addView(itemRow);
+            }
+        } else {
+            TextView tvEmpty = new TextView(activity);
+            tvEmpty.setText("Chưa có ghi chú chi tiết cho bản này");
+            tvEmpty.setTextSize(12f);
+            tvEmpty.setTextColor(COLOR_TEXT_MUTED);
+            tvEmpty.setPadding(0, (int) (4 * density), 0, (int) (4 * density));
+            containerSubPanelItems.addView(tvEmpty);
+        }
+
+        animateOpenSubPanel(() -> {
+            actionBtn.post(() -> actionBtn.requestFocus());
+        });
     }
 
     private void openUserModeSubPanel() {
@@ -641,8 +907,13 @@ public final class AdvancedSettingsDrawer {
             if (child instanceof TextView) {
                 TextView tv = (TextView) child;
                 if (tv.getId() == R.id.tvPinStatus
-                        || tv.getId() == R.id.tvReducedMotionStatus || tv.getId() == R.id.tvDeviceInfoStatus) {
+                        || tv.getId() == R.id.tvReducedMotionStatus
+                        || tv.getId() == R.id.tvDeviceInfoStatus
+                        || tv.getId() == R.id.tvAppUpdateStatus) {
                     tv.setTextColor(hasFocus ? COLOR_TEXT_DESC_FOCUSED : COLOR_TEXT_SECONDARY);
+                } else if (tv.getId() == R.id.badgeUpdate) {
+                    // Badge luôn giữ màu chữ trắng nổi bật
+                    tv.setTextColor(0xFFFFFFFF);
                 } else {
                     tv.setTextColor(hasFocus ? COLOR_TEXT_FOCUSED : COLOR_TEXT_PRIMARY);
                 }
@@ -674,10 +945,26 @@ public final class AdvancedSettingsDrawer {
         if (tvDeviceInfoStatus != null) {
             tvDeviceInfoStatus.setText("Cài đặt hệ thống TV");
         }
+        AppUpdateManager updateMgr = AppUpdateManager.getInstance(activity);
+        boolean hasUpdate = updateMgr.isUpdateAvailable();
+        if (badgeUpdate != null) {
+            badgeUpdate.setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
+        }
+        if (tvAppUpdateStatus != null) {
+            if (hasUpdate) {
+                tvAppUpdateStatus.setText("Có bản mới " + updateMgr.getLatestVersion());
+                tvAppUpdateStatus.setTextColor(COLOR_ACCENT_CYAN);
+            } else {
+                tvAppUpdateStatus.setText("Phiên bản " + updateMgr.getCurrentVersion() + " (Mới nhất)");
+                tvAppUpdateStatus.setTextColor(COLOR_TEXT_SECONDARY);
+            }
+        }
     }
 
     public void dismiss() {
         if (!isShowing || drawerView == null) return;
+
+        AppUpdateManager.getInstance(activity).unregisterListener(updateStateListener);
 
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).unblockMainContentFocus();

@@ -166,6 +166,9 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
     @Override
     public void onBindViewHolder(@NonNull UtilityViewHolder holder, int position) {
         holder.progressBar.setVisibility(View.GONE);
+        if (holder.badgeDot != null) {
+            holder.badgeDot.setVisibility(View.GONE);
+        }
         if (position < 0 || position >= activeTypes.size()) return;
         int type = activeTypes.get(position);
 
@@ -175,18 +178,23 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
 
         switch (type) {
             case TYPE_SETTINGS:
+                boolean hasUpdate = com.next.tv.launcher.update.AppUpdateManager.getInstance(context).isUpdateAvailable();
+                if (holder.badgeDot != null) {
+                    holder.badgeDot.setVisibility(hasUpdate ? View.VISIBLE : View.GONE);
+                }
+                String settingsSub = hasUpdate ? "Có bản cập nhật mới" : "Quản lý nâng cao";
                 if (currentMode == com.next.tv.launcher.onboarding.OnboardingDialog.MODE_SUPER_LIGHT) {
                     holder.icon.setImageResource(R.drawable.ic_leaf);
                     holder.title.setText("Chế độ Siêu gọn");
-                    holder.subtitle.setText("Quản lý nâng cao");
+                    holder.subtitle.setText(settingsSub);
                 } else if (currentMode == com.next.tv.launcher.onboarding.OnboardingDialog.MODE_BALANCED) {
                     holder.icon.setImageResource(R.drawable.ic_mode_gauge);
                     holder.title.setText("Chế độ Cân bằng");
-                    holder.subtitle.setText("Quản lý nâng cao");
+                    holder.subtitle.setText(settingsSub);
                 } else {
                     holder.icon.setImageResource(R.drawable.ic_layers);
                     holder.title.setText("Chế độ Đầy đủ");
-                    holder.subtitle.setText("Quản lý nâng cao");
+                    holder.subtitle.setText(settingsSub);
                 }
                 break;
             case TYPE_WIDGET_MANAGER:
@@ -389,6 +397,7 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
         final TextView title;
         final TextView subtitle;
         final ProgressBar progressBar;
+        final View badgeDot;
 
         UtilityViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -396,6 +405,7 @@ public class UtilitySectionAdapter extends RecyclerView.Adapter<UtilitySectionAd
             title = itemView.findViewById(R.id.utilityTitle);
             subtitle = itemView.findViewById(R.id.utilitySubtitle);
             progressBar = itemView.findViewById(R.id.utilityProgressBar);
+            badgeDot = itemView.findViewById(R.id.utilityBadgeDot);
         }
     }
 }

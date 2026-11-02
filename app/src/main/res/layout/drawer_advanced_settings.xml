@@ -362,7 +362,74 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 5. Thông tin thiết bị (Mở Cài đặt Hệ thống Android TV) -->
+                    <!-- 5. Cập nhật ứng dụng -->
+                    <LinearLayout
+                        android:id="@+id/itemAppUpdate"
+                        android:layout_width="match_parent"
+                        android:layout_height="62dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/drawer_menu_item_bg"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:focusable="true"
+                        android:clickable="true">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_marginEnd="14dp"
+                            android:src="@drawable/ic_system_update"
+                            android:tint="@color/drawer_menu_icon_tint"
+                            android:duplicateParentState="true"
+                            android:contentDescription="@null" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:duplicateParentState="true"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Cập nhật ứng dụng"
+                                android:textSize="14sp"
+                                android:fontFamily="@string/font_medium"
+                                android:duplicateParentState="true"
+                                android:textColor="@color/drawer_menu_text_color" />
+
+                            <TextView
+                                android:id="@+id/tvAppUpdateStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Phiên bản 1.0.0"
+                                android:textSize="11sp"
+                                android:fontFamily="@string/font_regular"
+                                android:duplicateParentState="true"
+                                android:textColor="@color/drawer_menu_subtext_color" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/badgeUpdate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/badge_update_pill"
+                            android:text="BẢN MỚI"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:paddingStart="7dp"
+                            android:paddingEnd="7dp"
+                            android:paddingTop="2dp"
+                            android:paddingBottom="2dp"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <!-- 6. Thông tin thiết bị (Mở Cài đặt Hệ thống Android TV) -->
                     <LinearLayout
                         android:id="@+id/itemDeviceInfo"
                         android:layout_width="match_parent"

@@ -223,6 +223,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private HorizontalSectionRecyclerView utilityRecyclerView;
     private TextView utilitySectionTitle;
     private UtilitySectionAdapter utilityAdapter;
+    private final com.next.tv.launcher.update.AppUpdateManager.UpdateStateListener appUpdateListener = hasUpdate -> {
+        runOnUiThread(() -> {
+            if (utilityAdapter != null) {
+                utilityAdapter.notifyTypeChanged(UtilitySectionAdapter.TYPE_SETTINGS);
+            }
+        });
+    };
     private RemoteControlDrawer remoteControlDrawer;
     private RemoteFileDrawer remoteFileDrawer;
     private RecyclerView.RecycledViewPool sharedPool;
@@ -609,6 +616,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             remoteLockServer.start();
         }
         setupUtilitySection();
+        com.next.tv.launcher.update.AppUpdateManager.getInstance(this).registerListener(appUpdateListener);
+        com.next.tv.launcher.update.AppUpdateManager.getInstance(this).checkForUpdates(false, null);
 
         grid.post(this::refitGlass);
 
@@ -1623,6 +1632,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             com.next.tv.launcher.widget.WidgetAddonManager.getInstance(this).removeListener(widgetAddonListener);
             widgetAddonListener = null;
         }
+        com.next.tv.launcher.update.AppUpdateManager.getInstance(this).unregisterListener(appUpdateListener);
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         if (bgExecutor != null) {

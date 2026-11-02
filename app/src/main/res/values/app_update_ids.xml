@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item type="id" name="itemAppUpdate" />
+    <item type="id" name="tvAppUpdateStatus" />
+    <item type="id" name="badgeUpdate" />
+    <item type="id" name="utilityBadgeDot" />
+    <item type="id" name="btnActionUpdate" />
+    <item type="id" name="btnCheckUpdateManual" />
+    <item type="id" name="subPanelUpdateProgressBar" />
+    <item type="id" name="subPanelUpdateProgressText" />
+</resources>
