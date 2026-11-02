@@ -108,6 +108,9 @@ android {
                 output.versionCodeOverride = defaultConfig.versionCode * 10 +
                     (abi == 'armeabi-v7a' ? 1 : abi == 'arm64-v8a' ? 2 : 0)
             }
+            def arch = abi != null ? abi : 'universal'
+            def buildKind = variant.buildType.name == 'debug' ? 'test' : 'release'
+            output.outputFileName = "nexttv-${arch}-v${variant.versionName}-${buildKind}.apk"
         }
     }
 

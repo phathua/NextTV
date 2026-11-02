@@ -56,14 +56,16 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testSideloadDebugUnitTest
 
-      - name: Build Sideload Release APKs
-        run: ./gradlew assembleSideloadRelease
+      - name: Build Sideload APKs (Release & Test)
+        run: ./gradlew assembleSideloadRelease assembleSideloadDebug
 
       - name: Upload APKs to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: NextTV-Sideload-APKs
-          path: app/build/outputs/apk/sideload/release/*.apk
+          path: |
+            app/build/outputs/apk/sideload/release/*.apk
+            app/build/outputs/apk/sideload/debug/*.apk
           if-no-files-found: error
           retention-days: 30
 
