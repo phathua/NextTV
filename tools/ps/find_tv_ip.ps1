@@ -112,17 +112,41 @@ foreach ($t in $tasks) {
 
 if ($foundList.Count -eq 1) {
     $selected = $foundList[0]
-    Write-Host "[+] Found Android TV at: $selected" -ForegroundColor Green
+    $mftr = (& adb -s "$selected:5555" shell getprop ro.product.manufacturer 2>$null)
+    $model = (& adb -s "$selected:5555" shell getprop ro.product.model 2>$null)
+    $name = if ($mftr -and $model) { "$mftr $model" } elseif ($model) { "$model" } else { "Android TV" }
+    Write-Host "[+] Tìm thấy 1 thiết bị Android TV: $name ($selected:5555)" -ForegroundColor Green
     [System.IO.File]::WriteAllText($cacheFile, $selected)
     Write-Output "__FOUND_IP__:$selected"
 } elseif ($foundList.Count -gt 1) {
-    Write-Host "[+] Found $($foundList.Count) Android TV devices:" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "==========================================================================" -ForegroundColor Cyan
+    Write-Host " [?] Tìm thấy $($foundList.Count) thiết bị Android TV / Cổng ADB đang mở:" -ForegroundColor Cyan
+    Write-Host "==========================================================================" -ForegroundColor Cyan
+    $cachedIp = ""
+    if (Test-Path $cacheFile) { $cachedIp = (Get-Content $cacheFile -Encoding UTF8 | Select-Object -First 1).Trim() }
+    $defaultIdx = 1
     for ($i = 0; $i -lt $foundList.Count; $i++) {
-        Write-Host "  [$($i+1)] $($foundList[$i])" -ForegroundColor Cyan
+        $dev = $foundList[$i]
+        $mftr = (& adb -s "$dev:5555" shell getprop ro.product.manufacturer 2>$null)
+        $model = (& adb -s "$dev:5555" shell getprop ro.product.model 2>$null)
+        $name = if ($mftr -and $model) { "$mftr $model" } elseif ($model) { "$model" } else { "Android TV" }
+        $marker = ""
+        if ($cachedIp -and $dev -eq $cachedIp) {
+            $marker = " (Dùng gần nhất)"
+            $defaultIdx = $i + 1
+        }
+        Write-Host "  [$($i+1)] $name ($dev:5555)$marker" -ForegroundColor Yellow
     }
-    # Auto-pick the first one as primary output for non-interactive pipelines
-    $selected = $foundList[0]
-    Write-Host "[*] Auto-selecting primary device: $selected" -ForegroundColor Yellow
+    Write-Host "==========================================================================" -ForegroundColor Cyan
+    $choice = Read-Host "👉 Vui lòng chọn thiết bị muốn sử dụng [1-$($foundList.Count)] (Mặc định: $defaultIdx)"
+    if (-not $choice) { $choice = $defaultIdx }
+    $choiceInt = 1
+    if ([int]::TryParse($choice, [ref]$choiceInt) -and $choiceInt -ge 1 -and $choiceInt -le $foundList.Count) {
+        $selected = $foundList[$choiceInt - 1]
+    } else {
+        $selected = $foundList[0]
+    }
     [System.IO.File]::WriteAllText($cacheFile, $selected)
     Write-Output "__FOUND_IP__:$selected"
 } else {

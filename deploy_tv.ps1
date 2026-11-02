@@ -246,9 +246,13 @@ try {
     }
     Start-Sleep -Milliseconds 600
 
-    # Polling device status up to 10 seconds
+    # Polling device status up to 90 seconds with non-blocking key detection
     $isAuthorized = $false
-    for ($attempt = 1; $attempt -le 10; $attempt++) {
+    $maxWaitSec = 90
+    $waitedSec = 0
+    $shownUnauth = $false
+
+    while ($waitedSec -lt $maxWaitSec) {
         $devicesOutput = & adb devices 2>&1
         $matchedState = $null
         foreach ($dLine in $devicesOutput) {
@@ -260,18 +264,38 @@ try {
 
         if ($matchedState -eq 'device') {
             $isAuthorized = $true
+            if ($shownUnauth) { Write-Host "" }
             break
         } elseif ($matchedState -eq 'unauthorized') {
-            Write-Host ""
-            Write-Host $msg.WaitAuth -ForegroundColor Yellow
-            try { [Console]::Beep(1000, 300) } catch {}
-            Start-Sleep -Seconds 2
+            if (-not $shownUnauth) {
+                Write-Host ""
+                Write-Host "==========================================================================" -ForegroundColor Yellow
+                Write-Host " [!] MÀN HÌNH TV ĐANG CHỜ XÁC THỰC KẾT NỐI (ALLOW USB DEBUGGING)" -ForegroundColor Yellow
+                Write-Host "==========================================================================" -ForegroundColor Yellow
+                Write-Host " 👉 Hãy cầm remote TV, tích chọn 'Luôn cho phép từ máy tính này'" -ForegroundColor Cyan
+                Write-Host "    rồi bấm [Cho phép / OK / Allow]." -ForegroundColor Cyan
+                Write-Host " ⏳ Đang chờ xác nhận... (Tự kiểm tra sau mỗi 2s, hoặc bấm [Enter]/[Space]" -ForegroundColor Gray
+                Write-Host "    để kiểm tra ngay lập tức, Ctrl+C để hủy)" -ForegroundColor Gray
+                Write-Host "==========================================================================" -ForegroundColor Yellow
+                $shownUnauth = $true
+                try { [Console]::Beep(1000, 300) } catch {}
+            }
+            if ([Console]::KeyAvailable) {
+                $null = [Console]::ReadKey($true)
+                Write-Host " [Đang kiểm tra lại...]" -NoNewline -ForegroundColor Cyan
+            } else {
+                Write-Host "." -NoNewline -ForegroundColor Gray
+                Start-Sleep -Milliseconds 2000
+            }
+            $waitedSec += 2
         } elseif ($matchedState -eq 'offline') {
             & adb disconnect $deviceTarget 2>&1 | Out-Null
             & adb connect $deviceTarget 2>&1 | Out-Null
             Start-Sleep -Seconds 1
+            $waitedSec += 1
         } else {
             Start-Sleep -Seconds 1
+            $waitedSec += 1
         }
     }
 
