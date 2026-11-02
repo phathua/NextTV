@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # NextTV - Build Release APK and Deploy to Android TV (Linux & macOS)
-# Clean single-line progress, animated spinners, vibrant ANSI colors & zero log flooding.
+# Persistent single-line progress, animated spinners, real-time progress bars & zero clutter.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +14,7 @@ TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 LOG_FILE="${LOG_DIR}/deploy_${TIMESTAMP}.log"
 cd "${REPO_ROOT}"
 
-# ANSI Colors (Compatible with macOS Terminal.app and Linux)
+# ANSI Colors (macOS Terminal.app & Linux)
 C_RESET="\033[0m"
 C_BOLD="\033[1m"
 C_CYAN="\033[1;36m"
@@ -24,19 +24,90 @@ C_RED="\033[1;31m"
 C_WHITE="\033[1;37m"
 C_GRAY="\033[90m"
 
+# Ensure cursor is restored on exit
+cleanup_cursor() {
+    printf "\033[?25h"
+}
+trap cleanup_cursor EXIT
+
 log_msg() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE}"
 }
 
-# Run command with single-line animated spinner, logging stdout+stderr to $LOG_FILE
-run_step() {
-    local step_title="$1"
-    shift
+# 1. Single-line Spinner Drawing
+draw_spinner() {
+    local step="$1"
+    local text="$2"
+    local spin_char="$3"
 
-    log_msg "----------------------------------------------------"
-    log_msg "Starting Step: ${step_title}"
-    log_msg "Command: $*"
+    local term_cols
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    local max_len=$(( term_cols - 16 ))
+    if (( ${#text} > max_len )); then
+        text="${text:0:$((max_len - 3))}..."
+    fi
 
+    printf "\r\033[K%b[%s]%b %b%s%b %b%s...%b" \
+        "$C_CYAN" "$step" "$C_RESET" \
+        "$C_YELLOW" "$spin_char" "$C_RESET" \
+        "$C_WHITE" "$text" "$C_RESET"
+}
+
+# 2. Single-line Status Drawing
+draw_status() {
+    local step="$1"
+    local text="$2"
+    local color="${3:-$C_CYAN}"
+
+    local term_cols
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    local max_len=$(( term_cols - 12 ))
+    if (( ${#text} > max_len )); then
+        text="${text:0:$((max_len - 3))}..."
+    fi
+
+    printf "\r\033[K%b[%s]%b %b%s%b" "$C_CYAN" "$step" "$C_RESET" "$color" "$text" "$C_RESET"
+}
+
+# 3. Single-line Visual Progress Bar Drawing
+draw_progress() {
+    local step="$1"
+    local percent="$2"
+    local label="$3"
+    local width=18
+
+    if (( percent > 100 )); then percent=100; fi
+    if (( percent < 0 )); then percent=0; fi
+    local filled=$(( (percent * width) / 100 ))
+    local empty=$(( width - filled ))
+
+    local fill_str=""
+    local empty_str=""
+    for ((j=0; j<filled; j++)); do fill_str="${fill_str}█"; done
+    for ((j=0; j<empty; j++)); do empty_str="${empty_str}░"; done
+
+    local term_cols
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    local max_label_len=$(( term_cols - 38 ))
+    if (( max_label_len < 10 )); then max_label_len=10; fi
+    if (( ${#label} > max_label_len )); then
+        label="${label:0:$((max_label_len - 3))}..."
+    fi
+
+    printf "\r\033[K%b[%s]%b %b[%b%s%b%s%b]%b %b%3d%%%b %b%s%b" \
+        "$C_CYAN" "$step" "$C_RESET" \
+        "$C_GRAY" "$C_GREEN" "$fill_str" "$C_GRAY" "$empty_str" "$C_GRAY" "$C_RESET" \
+        "$C_BOLD$C_WHITE" "$percent" "$C_RESET" \
+        "$C_CYAN" "$label" "$C_RESET"
+}
+
+# Run command with spinner on that single line
+run_step_spinner() {
+    local step="$1"
+    local title="$2"
+    shift 2
+
+    log_msg "Starting: [${step}] ${title}"
     "$@" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
     local spin=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
@@ -46,7 +117,7 @@ run_step() {
     printf "\033[?25l"
 
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r\033[K%b%s%b %b%s...%b" "$C_CYAN" "${spin[i]}" "$C_RESET" "$C_WHITE" "${step_title}" "$C_RESET"
+        draw_spinner "$step" "$title" "${spin[i]}"
         i=$(( (i + 1) % 10 ))
         sleep 0.08
     done
@@ -54,32 +125,34 @@ run_step() {
     wait "$pid"
     local ec=$?
 
-    # Restore cursor
-    printf "\033[?25h"
-
     if [[ $ec -eq 0 ]]; then
-        printf "\r\033[K%b[✓] %s hoàn tất.%b\n" "$C_GREEN" "${step_title}" "$C_RESET"
-        log_msg "Completed: ${step_title}"
+        draw_status "$step" "[✓] ${title} hoàn tất" "$C_GREEN"
+        sleep 0.35
         return 0
     else
-        printf "\r\033[K%b[X] %s thất bại! (Mã lỗi: %d)%b\n" "$C_RED" "${step_title}" "$ec" "$C_RESET"
-        log_msg "Failed: ${step_title} (exit code ${ec})"
+        printf "\n\r\033[K%b[X] [%s] %s thất bại! (Mã lỗi: %d)%b\n" "$C_RED" "$step" "$title" "$ec" "$C_RESET"
+        log_msg "Failed: [${step}] ${title} (exit code ${ec})"
         echo ""
         printf "%b--- 15 dòng log gần nhất: ---%b\n" "$C_YELLOW" "$C_RESET"
         tail -n 15 "${LOG_FILE}"
         printf "%b-----------------------------%b\n" "$C_YELLOW" "$C_RESET"
-        printf "%b📄 Chi tiết lỗi được lưu tại: %b%s%b\n" "$C_YELLOW" "$C_BOLD" "${LOG_FILE}" "$C_RESET"
-        return $ec
+        printf "%b📄 Chi tiết lỗi: %s%b\n" "$C_YELLOW" "${LOG_FILE}" "$C_RESET"
+        exit $ec
     fi
 }
 
-# Print ANSI banner if available
+# Print ANSI banner once at the top
 if [[ -f "${TOOLS_DIR}/banner.ans" ]]; then
     cat "${TOOLS_DIR}/banner.ans"
     echo ""
 fi
 
-# 1. Ensure ADB platform-tools & Environment
+# Hide cursor for clean UI
+printf "\033[?25l"
+
+# =========================================================================
+# STEP 1: Kiểm tra công cụ ADB & môi trường Java
+# =========================================================================
 ensure_environment() {
     source "${SCRIPT_DIR}/ensure_adb.sh"
 
@@ -116,21 +189,25 @@ ensure_environment() {
     fi
 }
 
-run_step "[1/5] Kiểm tra công cụ ADB và môi trường biên dịch" ensure_environment
+run_step_spinner "1/5" "Kiểm tra công cụ ADB & môi trường Java" ensure_environment
 
-# 2. Discover and Select Target Device
+# =========================================================================
+# STEP 2: Dò tìm & Kết nối Android TV
+# =========================================================================
 TV_HOST="${1:-${TV_IP:-}}"
 
 if [[ -z "$TV_HOST" ]]; then
-    printf "%b>>> [2/5] Đang tìm kiếm Android TV trên mạng LAN...%b\n" "$C_CYAN" "$C_RESET"
-    bash "${SCRIPT_DIR}/find_tv_ip.sh"
+    draw_status "2/5" "Đang dò tìm Android TV trên mạng LAN..." "$C_CYAN"
+    
+    # Run scanner with --quiet so it does not print excess lines when 1 device found
+    bash "${SCRIPT_DIR}/find_tv_ip.sh" --quiet
     if [[ -f "${CACHE_FILE}" ]]; then
         TV_HOST=$(head -n 1 "${CACHE_FILE}" | tr -d '[:space:]')
     fi
 fi
 
 if [[ -z "$TV_HOST" ]]; then
-    printf "%b[-] Chưa xác định được IP thiết bị Android TV. Hủy bỏ.%b\n" "$C_RED" "$C_RESET"
+    printf "\n%b[-] Chưa xác định được IP thiết bị Android TV. Hủy bỏ.%b\n" "$C_RED" "$C_RESET"
     exit 1
 fi
 
@@ -139,10 +216,9 @@ if [[ "$TARGET" != *:* ]]; then
     TARGET="${TARGET}:5555"
 fi
 
-# 3. Connect ADB and Handle Authorization Loop
-printf "%b>>> Đang kết nối ADB tới %b%s%b...%b\n" "$C_CYAN" "$C_BOLD" "${TARGET}" "$C_RESET" "$C_RESET"
+draw_status "2/5" "Đang kết nối ADB tới ${TARGET}..." "$C_CYAN"
 adb connect "${TARGET}" >> "${LOG_FILE}" 2>&1 || true
-sleep 1
+sleep 0.8
 
 MAX_WAIT=90
 WAITED=0
@@ -156,10 +232,6 @@ while true; do
     fi
 
     if [[ "$DEV_STATE" == "device" ]]; then
-        if [[ "$SHOWN_UNAUTH_BANNER" == true ]]; then
-            echo ""
-        fi
-        printf "%b[✓] Thiết bị %b%s%b đã kết nối & xác thực thành công!%b\n" "$C_GREEN" "$C_BOLD" "${TARGET}" "$C_RESET" "$C_RESET"
         break
     elif [[ "$DEV_STATE" == "unauthorized" ]]; then
         if [[ "$SHOWN_UNAUTH_BANNER" == false ]]; then
@@ -175,7 +247,6 @@ while true; do
             SHOWN_UNAUTH_BANNER=true
         fi
 
-        # Non-blocking read with 2-second timeout: Enter or Space triggers immediate re-check
         if read -t 2 -n 1 -r _key; then
             printf " %b[Đang kiểm tra lại...]%b" "$C_CYAN" "$C_RESET"
         else
@@ -196,8 +267,6 @@ while true; do
             fi
         fi
     elif [[ "$DEV_STATE" == "offline" ]]; then
-        echo ""
-        printf "%b[*] Thiết bị đang offline. Đang khởi động lại kết nối...%b\n" "$C_YELLOW" "$C_RESET"
         adb disconnect "${TARGET}" >> "${LOG_FILE}" 2>&1 || true
         sleep 1
         adb connect "${TARGET}" >> "${LOG_FILE}" 2>&1 || true
@@ -207,25 +276,72 @@ while true; do
         sleep 1
         WAITED=$((WAITED + 1))
         if (( WAITED >= 15 && SHOWN_UNAUTH_BANNER == false )); then
-            echo ""
-            printf "%b[-] Không thể kết nối tới %s. Vui lòng kiểm tra lại mạng Wi-Fi và TV.%b\n" "$C_RED" "${TARGET}" "$C_RESET"
+            printf "\n%b[-] Không thể kết nối tới %s. Vui lòng kiểm tra lại mạng Wi-Fi và TV.%b\n" "$C_RED" "${TARGET}" "$C_RESET"
             exit 1
         fi
     fi
 done
 
-# Query target device model & CPU architecture
 DEVICE_MODEL=$(adb -s "${TARGET}" shell getprop ro.product.model 2>/dev/null | tr -d '\r\n' || true)
 DEVICE_MFTR=$(adb -s "${TARGET}" shell getprop ro.product.manufacturer 2>/dev/null | tr -d '\r\n' || true)
 DEVICE_ABI=$(adb -s "${TARGET}" shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r\n' || true)
-printf "%b[✓] [2/5] Đã nhận diện: %b%s %s%b %b(Kiến trúc CPU: %s)%b\n" "$C_GREEN" "$C_BOLD" "${DEVICE_MFTR}" "${DEVICE_MODEL}" "$C_RESET" "$C_CYAN" "${DEVICE_ABI:-unknown}" "$C_RESET"
 
-# 4. Generate Native Secrets Header & Build APK
-run_step "[3/5] Tạo mã bảo mật Native Secrets (NDK)" bash "${SCRIPT_DIR}/generate_header.sh"
+NAME="${DEVICE_MFTR} ${DEVICE_MODEL}"
+NAME="${NAME#" "}"
+NAME="${NAME%" "}"
+draw_status "2/5" "[✓] Đã kết nối: ${NAME:-Android TV} (${TARGET})" "$C_GREEN"
+sleep 0.5
 
-run_step "[4/5] Biên dịch Sideload Release APK với Gradle" ./gradlew assembleSideloadRelease --console=plain
+# =========================================================================
+# STEP 3: Tạo mã bảo mật Native Secrets (NDK)
+# =========================================================================
+run_step_spinner "3/5" "Tạo mã bảo mật Native Secrets (NDK)" bash "${SCRIPT_DIR}/generate_header.sh"
 
-# Select best APK matching TV architecture
+# =========================================================================
+# STEP 4: Biên dịch Sideload Release APK với Gradle (Visual Progress Bar)
+# =========================================================================
+log_msg "Starting Gradle assembleSideloadRelease"
+draw_progress "4/5" 5 "Khởi động tiến trình Gradle..."
+
+./gradlew assembleSideloadRelease --console=plain >> "${LOG_FILE}" 2>&1 &
+GRADLE_PID=$!
+
+TOTAL_TASKS=55
+
+while kill -0 "$GRADLE_PID" 2>/dev/null; do
+    RAW_COUNT=$(grep -c "^> Task :app:" "${LOG_FILE}" 2>/dev/null || true)
+    TASK_COUNT=$(echo "${RAW_COUNT}" | tr -cd '0-9')
+    if [[ -z "${TASK_COUNT}" ]]; then TASK_COUNT=0; fi
+
+    CURRENT_TASK=$(grep "^> Task :app:" "${LOG_FILE}" 2>/dev/null | tail -n 1 | sed 's/> Task :app://' | awk '{print $1}' || true)
+
+    PCT=$(( (TASK_COUNT * 100) / TOTAL_TASKS ))
+    if (( PCT > 98 )); then PCT=98; fi
+    if (( PCT < 5 )); then PCT=5; fi
+
+    TASK_LABEL="Biên dịch Release APK"
+    if [[ -n "$CURRENT_TASK" ]]; then
+        TASK_LABEL="Biên dịch: ${CURRENT_TASK}"
+    fi
+
+    draw_progress "4/5" "$PCT" "${TASK_LABEL}"
+    sleep 0.12
+done
+
+wait "$GRADLE_PID"
+GRADLE_EC=$?
+
+if [[ $GRADLE_EC -eq 0 ]]; then
+    draw_progress "4/5" 100 "Biên dịch Release APK hoàn tất!"
+    sleep 0.4
+else
+    printf "\n%b[X] [4/5] Biên dịch Gradle thất bại! (Mã lỗi: %d)%b\n" "$C_RED" "$GRADLE_EC" "$C_RESET"
+    tail -n 15 "${LOG_FILE}"
+    printf "%b📄 Chi tiết lỗi: %s%b\n" "$C_YELLOW" "${LOG_FILE}" "$C_RESET"
+    exit $GRADLE_EC
+fi
+
+# Locate best APK
 APK_DIR="app/build/outputs/apk/sideload/release"
 if [[ ! -d "${APK_DIR}" ]]; then
     APK_DIR="app/build/outputs/apk/release"
@@ -243,24 +359,63 @@ else
 fi
 
 if [[ -z "${APK}" || ! -f "${APK}" ]]; then
-    printf "%b[-] Không tìm thấy file APK release trong %s!%b\n" "$C_RED" "${APK_DIR}" "$C_RESET"
+    printf "\n%b[-] Không tìm thấy file APK release trong %s!%b\n" "$C_RED" "${APK_DIR}" "$C_RESET"
     exit 1
 fi
 
-# 5. Install APK on TV Box
-install_apk_on_tv() {
+# =========================================================================
+# STEP 5: Cài đặt APK lên TV (Visual Progress Bar)
+# =========================================================================
+log_msg "Starting APK Install: ${APK}"
+draw_progress "5/5" 10 "Đang chuẩn bị cài đặt APK..."
+
+# Run install in background to animate progress bar
+(
     if ! adb -s "${TARGET}" install -r "${APK}" >> "${LOG_FILE}" 2>&1; then
-        log_msg "First install attempt failed, trying uninstall old version..."
         adb -s "${TARGET}" uninstall com.next.tv.launcher >> "${LOG_FILE}" 2>&1 || true
         adb -s "${TARGET}" install -r "${APK}" >> "${LOG_FILE}" 2>&1
     fi
-}
+) &
+INSTALL_PID=$!
 
-run_step "[5/5] Cài đặt APK $(basename "${APK}") lên TV" install_apk_on_tv
+INSTALL_PCT=15
+while kill -0 "$INSTALL_PID" 2>/dev/null; do
+    if (( INSTALL_PCT < 92 )); then
+        INSTALL_PCT=$(( INSTALL_PCT + 3 ))
+    fi
 
-# 6. Launch NextTV
+    LABEL="Đang truyền tải & cài đặt APK..."
+    if (( INSTALL_PCT >= 50 )); then
+        LABEL="TV đang giải nén & cài đặt hệ thống..."
+    fi
+
+    draw_progress "5/5" "$INSTALL_PCT" "$LABEL"
+    sleep 0.12
+done
+
+wait "$INSTALL_PID"
+INSTALL_EC=$?
+
+if [[ $INSTALL_EC -eq 0 ]]; then
+    draw_progress "5/5" 100 "Cài đặt APK lên TV hoàn tất!"
+    sleep 0.4
+else
+    printf "\n%b[X] [5/5] Cài đặt APK thất bại!%b\n" "$C_RED" "$C_RESET"
+    tail -n 15 "${LOG_FILE}"
+    printf "%b📄 Chi tiết lỗi: %s%b\n" "$C_YELLOW" "${LOG_FILE}" "$C_RESET"
+    exit $INSTALL_EC
+fi
+
+# =========================================================================
+# FINAL: Khởi chạy NextTV & Hiển thị kết quả
+# =========================================================================
+draw_status "✓" "Đang khởi chạy NextTV trên màn hình TV..." "$C_GREEN"
 adb -s "${TARGET}" shell am start -n com.next.tv.launcher/.MainActivity >> "${LOG_FILE}" 2>&1 || true
+sleep 0.5
 
+# Restore cursor and finalize
+printf "\033[?25h"
+echo ""
 echo ""
 printf "%b==================================================%b\n" "$C_GREEN" "$C_RESET"
 printf "%b [✓] TRIỂN KHAI NEXTTV THÀNH CÔNG!%b\n" "$C_BOLD$C_GREEN" "$C_RESET"

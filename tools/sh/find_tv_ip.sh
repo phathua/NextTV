@@ -19,9 +19,14 @@ C_WHITE="\033[1;37m"
 C_GRAY="\033[90m"
 
 OUTPUT_ALL=false
-if [[ "${1:-}" == "--all" ]]; then
-    OUTPUT_ALL=true
-fi
+QUIET=false
+for arg in "$@"; do
+    if [[ "$arg" == "--all" ]]; then
+        OUTPUT_ALL=true
+    elif [[ "$arg" == "--quiet" || "$arg" == "-q" ]]; then
+        QUIET=true
+    fi
+done
 
 # Ensure ADB is available in PATH
 if command -v adb >/dev/null 2>&1; then
@@ -221,9 +226,11 @@ if [[ $TOTAL_FOUND -eq 0 ]]; then
 elif [[ $TOTAL_FOUND -eq 1 ]]; then
     CHOSEN="${CANDIDATE_LIST[0]}"
     LABEL=$(get_device_label "$CHOSEN")
-    printf "%b[+] Tìm thấy 1 thiết bị Android TV: %b%s%b\n" "$C_GREEN" "$C_BOLD" "${LABEL}" "$C_RESET"
+    if [[ "$QUIET" == false ]]; then
+        printf "%b[+] Tìm thấy 1 thiết bị Android TV: %b%s%b\n" "$C_GREEN" "$C_BOLD" "${LABEL}" "$C_RESET"
+        echo "__FOUND_IP__:${CHOSEN}"
+    fi
     echo "${CHOSEN%%:*}" > "${CACHE_FILE}"
-    echo "__FOUND_IP__:${CHOSEN}"
     exit 0
 
 else
